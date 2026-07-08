@@ -39,13 +39,18 @@ async def ask_question(
             raise SessionNotFoundError
         if session.status != "active":
             raise SessionClosedError
-        print(dict(session.state))
         state = (
             dict(session.state)
             if session.state
             else new_state(student.id, session_id, session.concept)
         )
-        awaiting = bool(session.state and session.state.get("awaiting"))
+        raw_awaiting = (session.state or {}).get("awaiting")
+        # Normalize (legacy sessions stored a bool for "awaiting a hint answer").
+        awaiting = (
+            "hint"
+            if raw_awaiting is True
+            else (raw_awaiting if isinstance(raw_awaiting, str) else None)
+        )
     else:
         session_id = uuid4().hex[:36]
         session = TutorSession(
@@ -54,12 +59,21 @@ async def ask_question(
         db.add(session)
         await db.flush()
         state = new_state(student.id, session_id, question)
-        awaiting = False
+        awaiting = None
 
     # Turn inputs
     state["message"] = question
     state["self_rating"] = self_rating
-    state["is_answer"] = awaiting  # a message on an awaiting session is an answer
+    # `is_answer` drives the evaluator and means "answer to a HINT" only.
+    state["is_answer"] = awaiting == "hint"
+    state["incoming"] = (
+        "diagnostic_answer"
+        if awaiting == "diagnostic"
+        else "hint_answer"
+        if awaiting == "hint"
+        else "new"
+    )
+    state["diag_asked_this_turn"] = False  # transient, reset each turn
     state["distress"] = detect_distress(question)
 
     db.add(
@@ -108,14 +122,16 @@ async def ask_question(
     )
 
     action = result.get("action", "await")
-    result["awaiting"] = action == "hint"
-    session.state = serialize(result)
-    if action == "hint":
-        session.status = "active"
+    if action == "diagnostic":
+        awaiting_type, session.status = "diagnostic", "active"
+    elif action == "hint":
+        awaiting_type, session.status = "hint", "active"
     elif action == "escalation":
-        session.status = "escalated"
+        awaiting_type, session.status = None, "escalated"
     else:  # completed
-        session.status = "completed"
+        awaiting_type, session.status = None, "completed"
+    result["awaiting"] = awaiting_type
+    session.state = serialize(result)
 
     await db.commit()
 

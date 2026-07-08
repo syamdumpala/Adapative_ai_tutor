@@ -12,6 +12,28 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-07-08 — Interactive Diagnostic phase (doctor-style probing)
+**Author:** AI (Claude)
+**Summary:** Turned the Diagnostic agent into an interactive, multi-turn probing phase
+that runs BEFORE any teaching. Like a doctor, it asks the student `DIAGNOSTIC_ROUNDS`
+(=3) short probing questions, ONE per turn, recording each answer; after the 3rd it
+consolidates the Q&A into observations. The Misconception agent now uses that Q&A to
+categorize the difficulty into one of: `unsure_of_concept`, `misunderstanding_concept`,
+`missing_prerequisite`, `none` (was a free-form error label). Added a session `awaiting`
+type (`diagnostic` | `hint` | None) and an `incoming` turn kind so a message is routed
+as a diagnostic answer, a hint answer, or a new question. `/tutor/ask` can now return
+`action: "diagnostic"` (the probing question) with a `(Diagnostic n/3)` prefix.
+New flow: profile → [diagnostic ×3 interactive] → misconception → planner → rag →
+hint → guard → (await) → evaluator → …
+**Files:** `graph/state.py` (diagnostic_qa/pending/diag_asked_this_turn/incoming;
+awaiting now str), `graph/router.py` (diagnostic phase), `graph/nodes/diagnostic.py`
+(interactive loop), `graph/nodes/misconception.py` (3 categories), `service.py`
+(awaiting types), `tests/test_tutor.py` (rewritten flows). Removed a stray debug
+`print(session.state)`.
+**Tests:** `pytest` — 24 passed; ruff clean; live-demoed the 3-probe → hint → complete
+sequence. NOTE: `architecture/tutor_graph_flow.pdf` and DIAGRAM Flow A are now outdated
+(no diagnostic loop) — regenerate when convenient.
+
 ## 2026-07-08 — Persist profile on EVERY answer (not just correct)
 **Author:** AI (Claude)
 **Summary:** The long-term profile (mastery, confidence, evidence_count,

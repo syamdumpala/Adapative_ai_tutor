@@ -92,15 +92,25 @@ flowchart TD
 
 ### Multi-turn loop (across API calls)
 
+The session now opens with an **interactive Diagnostic phase**: the tutor asks 3 probing
+questions (one per turn) before the first hint. The Misconception agent categorizes the
+difficulty from that Q&A (`unsure_of_concept` / `misunderstanding_concept` /
+`missing_prerequisite` / `none`).
+
 ```mermaid
 sequenceDiagram
     participant C as Client
     participant S as service (session state)
     participant G as tutor_graph
     C->>S: POST /tutor/ask {question}
-    S->>G: run -> Profile..Hint+Guard
+    S->>G: run -> Profile -> Diagnostic (ask probe 1)
+    G-->>S: action=diagnostic (await)
+    S-->>C: {session_id, probing question 1/3}
+    Note over C,G: student answers probes 2/3 and 3/3 (2 more turns)
+    C->>S: POST /tutor/ask {answer 3, session_id}
+    S->>G: Diagnostic consolidates -> Misconception -> Planner..Hint+Guard
     G-->>S: action=hint (await)
-    S-->>C: {session_id, hint}
+    S-->>C: {hint}
     C->>S: POST /tutor/ask {answer, session_id}
     S->>G: resume -> Evaluator
     alt correct

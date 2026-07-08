@@ -7,16 +7,21 @@ class TutorState(TypedDict, total=False):
     # Identity / turn inputs
     student_id: int
     session_id: str
-    concept: str  # the topic being tutored (set from the first question)
+    concept: str  # student's original question
     message: str  # the current student message (question or answer)
-    is_answer: bool  # True when `message` is an answer to evaluate
+    is_answer: bool  # True when `message` is an answer to a HINT (drives the evaluator)
+    incoming: str  # "new" | "diagnostic_answer" | "hint_answer"
     self_rating: int  # student self-confidence for this answer (1-5)
     distress: bool
 
     # Per-session working state (filled by agents)
     profile: dict | None  # {mastery, confidence, misconceptions, evidence_count}
-    diagnostic: dict | None  # {observations}
-    misconception: str | None  # error type, or "none"
+    # Interactive diagnostic phase (doctor-style probing before teaching)
+    diagnostic_qa: list  # [{question, answer}] collected probing Q&A
+    diagnostic_pending: str | None  # probing question awaiting the student's answer
+    diag_asked_this_turn: bool  # transient: a probing question was asked this turn
+    diagnostic: dict | None  # final {observations, qa} — set once probing is complete
+    misconception: str | None  # difficulty category, or "none"
     tutor_plan: dict | None  # {difficulty, hint_level, plan}
     docs: list | None  # RAG documents [{title, content}]
     hint: str | None
@@ -30,9 +35,9 @@ class TutorState(TypedDict, total=False):
     next_review: str | None
 
     # Turn output (user-facing)
-    action: str  # hint | evaluation | escalation | completed | await
+    action: str  # diagnostic | hint | evaluation | escalation | completed | await
     output: str
-    awaiting: bool
+    awaiting: str | None  # None | "diagnostic" | "hint" — what the next message answers
 
 
 def new_state(student_id: int, session_id: str, concept: str) -> TutorState:
@@ -42,9 +47,13 @@ def new_state(student_id: int, session_id: str, concept: str) -> TutorState:
         "concept": concept,
         "message": concept,
         "is_answer": False,
+        "incoming": "new",
         "self_rating": 3,
         "distress": False,
         "profile": None,
+        "diagnostic_qa": [],
+        "diagnostic_pending": None,
+        "diag_asked_this_turn": False,
         "diagnostic": None,
         "misconception": None,
         "tutor_plan": None,
@@ -60,7 +69,7 @@ def new_state(student_id: int, session_id: str, concept: str) -> TutorState:
         "next_review": None,
         "action": "await",
         "output": "",
-        "awaiting": False,
+        "awaiting": None,
     }
 
 

@@ -20,6 +20,11 @@ def route(state: TutorState) -> str:
     if state.get("profile") is None:
         return "profile"
     if state.get("diagnostic") is None:
+        # Interactive diagnostic phase: ask DIAGNOSTIC_ROUNDS probing questions, one per
+        # turn. If we asked one this turn, pause (END) for the student's answer; otherwise
+        # run the diagnostic node to record an answer and ask the next / consolidate.
+        if state.get("diag_asked_this_turn"):
+            return "await"
         return "diagnostic"
     if state.get("misconception") is None:
         return "misconception"
