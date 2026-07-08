@@ -25,10 +25,11 @@ flowchart TD
     AuthSvc --> Core["core/<br/>config · database · security"]
     TutorSvc --> Core
     AuthDep --> Core
+    Pipeline --> LLM["core/llm.py<br/>(provider factory)"]
 
     AuthModel --> DB[(PostgreSQL)]
     TutorModel --> DB
-    Pipeline --> Claude([Claude<br/>claude-opus-4-8])
+    LLM --> Providers([Claude subscription ·<br/>Anthropic · OpenAI · Gemini])
 ```
 
 ## Request lifecycle — POST /tutor/ask
@@ -45,7 +46,7 @@ sequenceDiagram
     C->>R: POST /tutor/ask (JWT, question)
     R->>D: resolve current student (verify JWT)
     D-->>R: Student
-    R->>R: check ANTHROPIC_API_KEY (else 503)
+    R->>R: check LLM configured (else 503)
     R->>S: ask_question(db, student, question)
     S->>P: run_tutor_pipeline(question, name)
     P-->>S: {analysis, answer, followups}

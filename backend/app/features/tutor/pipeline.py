@@ -8,29 +8,27 @@ The graph runs three stages in sequence:
   * tutor    — produces an adaptive, step-by-step explanation
   * followup — proposes practice questions to reinforce the concept
 
-Each stage is a node that calls Claude (`claude-opus-4-8`) through
-`langchain-anthropic`. State is passed between nodes as a typed dict.
+Each stage is a node that calls the configured chat model (built by
+`app.core.llm.get_chat_model`, provider-agnostic). State is passed between nodes
+as a typed dict.
 """
 
 from typing import TypedDict
 
-from langchain_anthropic import ChatAnthropic
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 
-from app.core.config import settings
+from app.core.llm import get_chat_model
 
-_llm: ChatAnthropic | None = None
+_llm: BaseChatModel | None = None
 
 
-def _get_llm() -> ChatAnthropic:
-    """Lazily construct the Claude chat model so the app can boot without a key."""
+def _get_llm() -> BaseChatModel:
+    """Lazily build the configured chat model so the app can boot without a key."""
     global _llm
     if _llm is None:
-        kwargs: dict = {"model": settings.llm_model, "max_tokens": 2048, "timeout": 60}
-        if settings.anthropic_api_key:
-            kwargs["api_key"] = settings.anthropic_api_key
-        _llm = ChatAnthropic(**kwargs)
+        _llm = get_chat_model()
     return _llm
 
 

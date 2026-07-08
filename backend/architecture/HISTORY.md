@@ -12,6 +12,33 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-07-08 — Configurable LLM provider (subscription in dev, API keys in prod)
+**Author:** AI (Claude)
+**Summary:** Decoupled the tutoring pipeline from a single hard-wired Anthropic API
+key. Added a provider **factory** (`app/core/llm.py`) selected purely by env:
+`LLM_PROVIDER` (anthropic | openai | google), `LLM_AUTH_MODE` (subscription |
+api_key, Anthropic only), and `LLM_MODEL` (any model — applies to the subscription
+too, e.g. `claude-sonnet-5` vs `claude-opus-4-8`). In development, `subscription`
+routes calls through a Claude Pro/Max subscription via the Claude Agent SDK
+(`CLAUDE_CODE_OAUTH_TOKEN`) so no metered API tokens are spent — wrapped as a
+LangChain `BaseChatModel` so the LangGraph nodes are unchanged. In production, an
+API key for Anthropic / OpenAI / Google Gemini is used; switching environments is a
+config change, not a code change. Provider packages are imported lazily. The
+`/tutor/ask` 503 gate is now provider-aware (`llm_is_configured()`). Subscription
+mode is dev-only (a subscription does not include API access; the OAuth token is
+licensed for individual Claude Code / Agent SDK use), which is why prod is
+API-key-based.
+**Files:**
+- Added: `app/core/llm.py`.
+- Modified: `app/core/config.py` (provider settings + per-provider keys),
+  `app/features/tutor/pipeline.py` (uses the factory), `app/features/tutor/routes.py`
+  (provider-aware 503), `app/features/tutor/tests/test_tutor.py`, `.env.example`,
+  `requirements.txt` (+langchain-openai, +langchain-google-genai),
+  `requirements-dev.txt` (+claude-agent-sdk), `architecture/{DIAGRAM,STRUCTURE}.md`.
+**Tests:** Unit tests updated to patch `llm_is_configured` (pipeline still mocked;
+no real LLM calls). NOTE: suite not run here — the project has no Python 3.11+ venv
+yet (system Python is 3.9); run `make test` once a venv exists.
+
 ## 2026-07-08 — Refactor to feature-based architecture
 **Author:** AI (Claude)
 **Summary:** Restructured the flat `app/` layout into a robust feature-based

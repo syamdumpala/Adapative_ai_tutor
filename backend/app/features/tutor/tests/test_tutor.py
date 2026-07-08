@@ -1,9 +1,9 @@
 """Unit / API tests for the tutor feature.
 
-The LangGraph pipeline is monkeypatched so tests never call Claude.
+The LangGraph pipeline is monkeypatched so tests never call an LLM, and the
+provider-configuration gate (`llm_is_configured`) is patched so no real
+credentials or provider packages are needed.
 """
-
-from app.core.config import settings
 
 REGISTRATION = {
     "student_name": "Ada Lovelace",
@@ -27,8 +27,8 @@ async def test_ask_requires_auth(client):
     assert resp.status_code == 401
 
 
-async def test_ask_without_api_key_returns_503(client, monkeypatch):
-    monkeypatch.setattr(settings, "anthropic_api_key", None)
+async def test_ask_without_llm_configured_returns_503(client, monkeypatch):
+    monkeypatch.setattr("app.features.tutor.routes.llm_is_configured", lambda: False)
     headers = await _auth_header(client)
     resp = await client.post(
         "/tutor/ask", json={"question": "Why is the sky blue?"}, headers=headers
@@ -37,7 +37,7 @@ async def test_ask_without_api_key_returns_503(client, monkeypatch):
 
 
 async def test_ask_with_mocked_pipeline(client, monkeypatch):
-    monkeypatch.setattr(settings, "anthropic_api_key", "test-key")
+    monkeypatch.setattr("app.features.tutor.routes.llm_is_configured", lambda: True)
 
     async def fake_pipeline(question: str, student_name: str) -> dict:
         return {
@@ -60,7 +60,7 @@ async def test_ask_with_mocked_pipeline(client, monkeypatch):
 
 
 async def test_ask_rejects_blank_question(client, monkeypatch):
-    monkeypatch.setattr(settings, "anthropic_api_key", "test-key")
+    monkeypatch.setattr("app.features.tutor.routes.llm_is_configured", lambda: True)
     headers = await _auth_header(client)
     resp = await client.post("/tutor/ask", json={"question": "   "}, headers=headers)
     assert resp.status_code == 422
