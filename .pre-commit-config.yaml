@@ -2,7 +2,7 @@
 # Linting/formatting runs automatically on every `git commit`.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.15.20
     hooks:
       - id: ruff
         name: ruff (lint + autofix)

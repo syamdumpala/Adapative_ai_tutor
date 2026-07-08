@@ -6,6 +6,7 @@ so the supervisor loops back to the Planner for another attempt (section 2 of th
 
 from app.features.tutor.graph import llm
 from app.features.tutor.models import EvidenceEvent
+from app.features.tutor.repository import apply_evaluation
 
 _SYSTEM = (
     "You are the Evaluator. Judge whether the student's answer is correct for the "
@@ -49,12 +50,16 @@ async def evaluator_node(state, config):
     )
     await db.flush()
 
+    # Update the long-term profile on EVERY answer so the next session sees it.
+    profile = await apply_evaluation(db, student.id, current_confidence, correct)
+
     updates: dict = {
         "evaluation": {
             "correct": correct,
             "feedback": feedback,
             "current_confidence": current_confidence,
         },
+        "profile": profile,
         "is_answer": False,  # this answer is now consumed
     }
 

@@ -39,6 +39,7 @@ async def ask_question(
             raise SessionNotFoundError
         if session.status != "active":
             raise SessionClosedError
+        print(dict(session.state))
         state = (
             dict(session.state)
             if session.state

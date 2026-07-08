@@ -15,12 +15,12 @@ _SYSTEM = (
 async def hint_node(state, config):
     level = state.get("hint_level", 1)
     plan = state.get("tutor_plan") or {}
-    docs_text = "\n".join(d.get("content", "") for d in (state.get("docs") or []))
     hint = await llm.complete(
         "hint",
         _SYSTEM,
-        f"Concept: {state['concept']}\nHint level: {level}\n"
-        f"Lesson plan: {plan.get('plan')}\nReference material: {docs_text}\n"
+        f"Concept: {state['concept']}\n"
+        f"Hint level: {level}\n"
+        f"Lesson plan: {plan.get('plan')}\n"
         "Remember: do not reveal the final answer.",
     )
     return {"hint": hint}

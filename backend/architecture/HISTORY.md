@@ -12,6 +12,24 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-07-08 — Persist profile on EVERY answer (not just correct)
+**Author:** AI (Claude)
+**Summary:** The long-term profile (mastery, confidence, evidence_count,
+misconceptions) was only saved by the `memory` node, which runs solely on a correct
+answer — so wrong-only or escalated sessions never updated the profile. Centralized
+the update in `repository.apply_evaluation()` and call it from the `evaluator` on
+**every** answer (correct or wrong): confidence = 0.8*old+0.2*current, mastery =
+0.8*old+0.2*(1 if correct else 0) clamped, evidence_count++, misconceptions
+consolidated. `memory` node now just finalizes the success message (no double-write).
+Verified: a wrong answer now decays mastery 0.3→0.24 and updates confidence, and the
+next session fetches the new values. Also fixed a blocking `F841` (removed an unused
+`docs_text` after reference material was commented out of the hint prompt).
+**Files:** `app/features/tutor/repository.py` (+apply_evaluation),
+`app/features/tutor/graph/nodes/evaluator.py` (call it), `memory.py` (simplified),
+`hint.py` (lint).
+**Tests:** `pytest` — 23 passed; ruff clean; verified correct- and wrong-answer
+profile persistence + next-session fetch.
+
 ## 2026-07-08 — Per-agent input/output dump (DEBUG_AGENT_IO)
 **Author:** AI (Claude)
 **Summary:** Added a lightweight, in-process capture of each agent's LLM input
