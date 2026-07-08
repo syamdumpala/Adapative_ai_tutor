@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
 from app.core.config import DEFAULT_JWT_SECRET, settings
 from app.core.database import Base, engine
+from app.core.observability import configure_observability
 
 # Import feature models so they register on Base.metadata before create_all.
 from app.features.auth import models as auth_models  # noqa: F401
@@ -17,6 +18,7 @@ logger = logging.getLogger("app")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    configure_observability()
     if settings.jwt_secret == DEFAULT_JWT_SECRET:
         logger.warning(
             "JWT_SECRET is the insecure default — set a strong random JWT_SECRET "

@@ -31,3 +31,5 @@ class AskResponse(BaseModel):
     confidence: float | None = None
     next_review: str | None = None
     sources: list[str] = []
+    # Populated only when DEBUG_AGENT_IO=true: {agent: {input, output}} for this turn.
+    agents: dict | None = None

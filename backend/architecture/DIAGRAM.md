@@ -30,6 +30,7 @@ flowchart TD
     AuthModel --> DB[(PostgreSQL)]
     TutorModel --> DB
     LLM --> Providers([Claude subscription ·<br/>Anthropic · OpenAI · Gemini])
+    Pipeline -.->|traces per agent| LS([LangSmith<br/>observability])
 ```
 
 ## Request lifecycle — POST /tutor/ask

@@ -12,6 +12,67 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-07-08 — Per-agent input/output dump (DEBUG_AGENT_IO)
+**Author:** AI (Claude)
+**Summary:** Added a lightweight, in-process capture of each agent's LLM input
+(system+user prompt) and output, independent of LangSmith. `graph/trace.py` uses a
+ContextVar so concurrent requests don't mix; `graph/llm.complete()` records every
+call; `service.ask_question()` starts a capture, builds a `{agent: {input, output}}`
+dict, and — when `DEBUG_AGENT_IO=true` — prints it to the console AND returns it in
+the `/tutor/ask` response (`AskResponse.agents`). Repeated agents in a turn become a
+list. Dev-only (verbose, exposes prompts); default false, enabled in local `.env`.
+**Files:** Added `app/features/tutor/graph/trace.py`,
+`app/features/tutor/tests/test_trace.py`. Modified `app/core/config.py`
+(`debug_agent_io`), `app/features/tutor/graph/llm.py` (record), `service.py`
+(capture+print+attach), `schemas.py` (`agents` field), `.env.example`, local `.env`.
+**Tests:** `pytest` — 23 passed (3 new trace tests); ruff clean; live-demoed the
+printed dict + returned `agents`.
+
+## 2026-07-08 — Fix LangSmith not tracing (auto-enable on key) + live verify
+**Author:** AI (Claude)
+**Summary:** Tracing wasn't working because `.env` had `LANGSMITH_TRACING=false`.
+Changed the flag to tri-state (`bool | None`): a present `LANGSMITH_API_KEY` now
+**auto-enables** tracing (the requested behavior); `LANGSMITH_TRACING=false` forces it
+off, `=true` requires a key. Set `LANGSMITH_TRACING=true` in the local `.env`; made
+`.env.example` safe (blank key = off, so copiers don't spam a bogus key). **Live-verified**:
+ran the real graph with tracing on + the real key (fake chat model, no LLM cost) and
+confirmed LangSmith accepted the trace — runs appear as `agent:<stage>` (llm) under a
+`tutor-session:<id>` parent, each with its prompt (system+user) as input and the reply
+as output.
+**Files:** `app/core/config.py` (tri-state), `app/core/observability.py` (auto-enable),
+`app/core/tests/test_observability.py`, `.env.example`, local `.env`.
+**Tests:** `pytest` — 20 passed; ruff clean; live LangSmith trace confirmed.
+
+## 2026-07-08 — Makefile uses venv; scrub leaked key from .env.example
+**Author:** AI (Claude)
+**Summary:** `make run`/`test`/`lint` were resolving bare `uvicorn`/`pytest` from
+PATH, which could hit a system Python missing deps (`ModuleNotFoundError:
+pydantic_settings`). Rewrote the Makefile to run everything through `$(VENV)/bin/python
+-m ...` (override with `make VENV=… run`), added a `venv` target. Also replaced a
+**real LangSmith API key** that had been pasted into the git-tracked `.env.example`
+with a placeholder — real secrets belong only in the gitignored `.env`. **Action:
+rotate that LangSmith key.**
+**Files:** `backend/Makefile`, `backend/.env.example`.
+**Tests:** `pytest` — 19 passed; app boots via `.venv/bin/python -m uvicorn`.
+
+## 2026-07-08 — Observability: LangSmith tracing (per-agent)
+**Author:** AI (Claude)
+**Summary:** Added opt-in LangSmith tracing so every tutor run is inspectable —
+each session appears as a `tutor-session:<id>` trace, each agent's LLM call as
+`agent:<stage>` with model/provider metadata and full input/output, plus latency
+and token usage. Env-driven (`LANGSMITH_TRACING`, `LANGSMITH_API_KEY`,
+`LANGSMITH_PROJECT`, `LANGSMITH_ENDPOINT`); off by default (zero overhead when off).
+`core/observability.py::configure_observability()` sets the LangSmith env at startup;
+`graph/llm.py` tags each call by agent; `service.py` attaches session metadata
+(student_id, session_id) to the graph run. Because the tutor is built on LangChain +
+LangGraph, tracing needs no per-node instrumentation.
+**Files:** Added `app/core/observability.py`, `app/core/tests/test_observability.py`.
+Modified `app/core/config.py` (LangSmith settings), `app/main.py` (call at startup),
+`app/features/tutor/graph/llm.py` (per-agent run name/tags/metadata),
+`app/features/tutor/service.py` (session metadata), `requirements.txt` (+langsmith),
+`.env.example`, `architecture/{STRUCTURE,DIAGRAM}.md`.
+**Tests:** `pytest` — 19 passed (3 new observability tests); ruff clean.
+
 ## 2026-07-08 — Security hardening + dependency audit
 **Author:** AI (Claude)
 **Summary:** Added CORS middleware (configurable `CORS_ORIGINS`, defaults to the

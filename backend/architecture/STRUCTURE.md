@@ -13,6 +13,7 @@ backend/
 │   │   ├── config.py               # Settings (env / .env) — DB URL, JWT, LLM provider/auth-mode/model, keys
 │   │   ├── database.py             # async SQLAlchemy engine, session factory, Base, get_db()
 │   │   ├── llm.py                   # LLM provider factory (subscription / Anthropic / OpenAI / Gemini)
+│   │   ├── observability.py         # LangSmith tracing wiring (configure_observability)
 │   │   └── security.py             # password hashing + JWT encode/decode (framework-agnostic)
 │   ├── api/
 │   │   └── router.py               # ROUTE INDEX — aggregates every feature router

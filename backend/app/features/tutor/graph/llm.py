@@ -13,7 +13,9 @@ from typing import Any
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
+from app.core.config import settings
 from app.core.llm import get_chat_model
+from app.features.tutor.graph import trace
 
 _llm: BaseChatModel | None = None
 
@@ -38,9 +40,23 @@ def _text(message: BaseMessage) -> str:
 
 
 async def complete(stage: str, system: str, user: str) -> str:
-    """Run one LLM completion. `stage` labels the agent (used by test mocks)."""
-    resp = await _get_llm().ainvoke([SystemMessage(content=system), HumanMessage(content=user)])
-    return _text(resp)
+    """Run one LLM completion. `stage` labels the agent (used by test mocks and by
+    LangSmith tracing — each call shows up as `agent:<stage>` with model metadata)."""
+    resp = await _get_llm().ainvoke(
+        [SystemMessage(content=system), HumanMessage(content=user)],
+        config={
+            "run_name": f"agent:{stage}",
+            "tags": [f"agent:{stage}", f"provider:{settings.llm_provider}"],
+            "metadata": {
+                "agent": stage,
+                "provider": settings.llm_provider,
+                "model": settings.llm_model,
+            },
+        },
+    )
+    text = _text(resp)
+    trace.record(stage, {"system": system, "user": user}, text)
+    return text
 
 
 def parse_json(text: str, default: dict[str, Any]) -> dict[str, Any]:

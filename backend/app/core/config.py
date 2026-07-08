@@ -26,6 +26,19 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None  # prod: OpenAI API key
     google_api_key: str | None = None  # prod: Google Gemini API key
 
+    # Observability — LangSmith tracing (per-agent inputs/outputs/models).
+    # Tri-state: a present LANGSMITH_API_KEY auto-enables tracing. Set
+    # LANGSMITH_TRACING=false to force it off, or =true to require it.
+    langsmith_tracing: bool | None = None
+    langsmith_api_key: str | None = None
+    langsmith_project: str = "adaptive-ai-tutor"
+    langsmith_endpoint: str = "https://api.smith.langchain.com"
+
+    # Debug: print each agent's prompt input + output per request, and include the
+    # {agent: {input, output}} dict in the /tutor/ask response. Dev-only (verbose,
+    # exposes prompts) — keep false in production.
+    debug_agent_io: bool = False
+
     # CORS — comma-separated origins allowed to call the API from a browser.
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
