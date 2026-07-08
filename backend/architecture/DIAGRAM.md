@@ -19,8 +19,8 @@ flowchart TD
 
     TutorR --> AuthDep
     TutorR --> TutorSvc["tutor/service.py"]
-    TutorSvc --> Pipeline["tutor/pipeline.py<br/>(LangGraph)"]
-    TutorSvc --> TutorModel["tutor/models.py<br/>QuestionLog"]
+    TutorSvc --> Pipeline["tutor/graph/<br/>(LangGraph multi-agent)"]
+    TutorSvc --> TutorModel["tutor/models.py<br/>profile · sessions · history<br/>evidence · escalations"]
 
     AuthSvc --> Core["core/<br/>config · database · security"]
     TutorSvc --> Core
@@ -54,12 +54,60 @@ sequenceDiagram
     R-->>C: 200 QuestionResponse
 ```
 
-## AI pipeline (LangGraph state graph)
+## AI graph (LangGraph multi-agent, supervisor-routed)
+
+The supervisor re-routes after every agent based on which state fields are filled
+(see `graph/router.py`). A turn ends (`END`) either after a hint is delivered
+(awaiting the student's answer) or after the memory/revision or escalation branch.
 
 ```mermaid
-flowchart LR
-    START((START)) --> A[analyze<br/>subject / difficulty]
-    A --> T[tutor<br/>adaptive explanation]
-    T --> F[followup<br/>3 practice questions]
-    F --> END((END))
+flowchart TD
+    START((START)) --> SUP{supervisor<br/>router}
+    SUP -->|profile missing| PRO[Profile]
+    SUP -->|diagnostic missing| DIA[Diagnostic]
+    SUP -->|misconception missing| MIS[Misconception]
+    SUP -->|plan missing| PLA[Planner]
+    SUP -->|docs missing| RAG[RAG stub]
+    SUP -->|hint missing| HIN[Hint]
+    SUP -->|answered| EVA[Evaluator]
+    SUP -->|correct| MEM[Memory]
+    SUP -->|failures>=3 / distress| ESC[Escalation]
+    SUP -->|hint delivered| ENDA((END: await answer))
+
+    PRO --> SUP
+    DIA --> SUP
+    MIS --> SUP
+    PLA --> SUP
+    RAG --> SUP
+    HIN --> GUA[Hint Guard]
+    GUA --> SUP
+    EVA --> SUP
+    MEM --> REV[Revision Planner]
+    REV --> ENDC((END: completed))
+    ESC --> ENDE((END: escalated))
+```
+
+### Multi-turn loop (across API calls)
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as service (session state)
+    participant G as tutor_graph
+    C->>S: POST /tutor/ask {question}
+    S->>G: run -> Profile..Hint+Guard
+    G-->>S: action=hint (await)
+    S-->>C: {session_id, hint}
+    C->>S: POST /tutor/ask {answer, session_id}
+    S->>G: resume -> Evaluator
+    alt correct
+        G-->>S: Memory -> Revision (completed)
+        S-->>C: {completed, mastery, next_review}
+    else wrong (failures<3)
+        G-->>S: new Hint (await)
+        S-->>C: {hint}
+    else failures>=3 or distress
+        G-->>S: Escalation
+        S-->>C: {escalation}
+    end
 ```

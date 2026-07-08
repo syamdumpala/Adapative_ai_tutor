@@ -21,15 +21,25 @@ backend/
 │       │   ├── schemas.py          # Pydantic request/response models + validators
 │       │   ├── service.py          # business logic (register/authenticate); domain errors
 │       │   ├── dependencies.py     # get_current_student (JWT -> Student)
-│       │   ├── routes.py           # /auth/register, /auth/login, /auth/me
+│       │   ├── routes.py           # /auth/register, /auth/login, /auth/token, /auth/me
 │       │   └── tests/
 │       │       └── test_auth.py
 │       └── tutor/
-│           ├── models.py           # QuestionLog ORM model
-│           ├── schemas.py          # QuestionRequest / QuestionResponse + validators
-│           ├── pipeline.py         # LangGraph agentic pipeline (analyze -> tutor -> followup)
-│           ├── service.py          # ask_question(): run pipeline + persist QuestionLog
-│           ├── routes.py           # /tutor/ask
+│           ├── models.py           # StudentProfile, TutorSession, ConversationHistory,
+│           │                       #   EvidenceEvent, TeacherEscalation
+│           ├── repository.py       # async DB helpers (profile/session/misconceptions)
+│           ├── schemas.py          # AskRequest / AskResponse + validators
+│           ├── service.py          # ask_question(): hydrate session -> run graph -> persist
+│           ├── routes.py           # /tutor/ask (multi-turn)
+│           ├── graph/              # LangGraph multi-agent tutor
+│           │   ├── state.py        # TutorState, new_state(), detect_distress()
+│           │   ├── llm.py          # shared complete(stage,...) seam + parse_json (mock point)
+│           │   ├── router.py       # supervisor routing (conditional edges per guide §2)
+│           │   ├── graph.py        # build_graph() -> compiled `tutor_graph`
+│           │   └── nodes/          # one file per agent
+│           │       ├── profile.py       diagnostic.py   misconception.py
+│           │       ├── planner.py       rag.py (stub)   hint.py   guard.py
+│           │       ├── evaluator.py     memory.py       revision.py   escalation.py
 │           └── tests/
 │               └── test_tutor.py
 ├── architecture/                   # SOURCE OF TRUTH (read before changing code)
@@ -64,7 +74,7 @@ backend/
   - `tests/test_<feature>.py` — unit/API tests for the feature.
 - **Route index**: `app/api/router.py` exposes `api_router`; every feature router is
   `include_router`-ed here. `main.py` mounts only `api_router`.
-- **Tables**: snake_case plural (`students`, `question_logs`).
+- **Tables**: snake_case (`students`, `tutor_sessions`, `conversation_history`).
 - **Domain errors**: named `*Error` in the feature's `service.py`; translated to HTTP in `routes.py`.
 
 ## Layering rules
@@ -79,14 +89,19 @@ backend/
 | Method | Path             | Auth   | Feature | Description                          |
 | ------ | ---------------- | ------ | ------- | ------------------------------------ |
 | POST   | `/auth/register` | —      | auth    | Register a student                   |
-| POST   | `/auth/login`    | —      | auth    | Login (email + password) → JWT       |
+| POST   | `/auth/login`    | —      | auth    | Login (email + password JSON) → JWT  |
+| POST   | `/auth/token`    | —      | auth    | OAuth2 form login (Swagger Authorize)|
 | GET    | `/auth/me`       | Bearer | auth    | Current student                      |
-| POST   | `/tutor/ask`     | Bearer | tutor   | Run the agentic tutoring pipeline    |
+| POST   | `/tutor/ask`     | Bearer | tutor   | One turn of the multi-agent tutor graph (multi-turn via `session_id`) |
 | GET    | `/health`        | —      | —       | Health check                         |
 
 ## Tables
 
-| Table           | Feature | Columns                                                        |
-| --------------- | ------- | -------------------------------------------------------------- |
-| `students`      | auth    | id, student_id(unique), student_name, email(unique), hashed_password, created_at |
-| `question_logs` | tutor   | id, student_id(FK→students.id), question, answer, created_at   |
+| Table                  | Feature | Columns                                                        |
+| ---------------------- | ------- | -------------------------------------------------------------- |
+| `students`             | auth    | id, student_id(unique), student_name, email(unique), hashed_password, created_at |
+| `student_profile`      | tutor   | id, student_id(FK, unique), mastery, confidence, misconceptions(JSON), evidence_count, next_review, updated_at |
+| `tutor_sessions`       | tutor   | id(uuid), student_id(FK), concept, status, state(JSON graph state), created/updated_at |
+| `conversation_history` | tutor   | id, session_id(FK), student_id(FK), role(user/assistant), content, created_at |
+| `evidence_events`      | tutor   | id, student_id(FK), session_id(FK), concept, correct, error_type, created_at |
+| `teacher_escalations`  | tutor   | id, student_id(FK), session_id(FK), reason, created_at         |

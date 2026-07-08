@@ -60,6 +60,23 @@ async def test_login_and_me(client):
     assert me.json()["student_id"] == "S001"
 
 
+async def test_oauth2_token_form(client):
+    """The Swagger 'Authorize' dialog posts form-encoded username/password here."""
+    await _register(client)
+    resp = await client.post(
+        "/auth/token",
+        data={"username": REGISTRATION["email"], "password": REGISTRATION["password"]},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["access_token"]
+    assert body["token_type"] == "bearer"
+
+    # The issued token works against a protected route.
+    me = await client.get("/auth/me", headers={"Authorization": f"Bearer {body['access_token']}"})
+    assert me.status_code == 200
+
+
 async def test_login_wrong_password(client):
     await _register(client)
     resp = await client.post(

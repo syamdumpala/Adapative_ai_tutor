@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.core.security import decode_token
 from app.features.auth.models import Student
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=True)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=True)
 
 
 async def get_current_student(

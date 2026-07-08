@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -40,6 +41,26 @@ async def login(payload: StudentLogin, db: AsyncSession = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
+        ) from None
+    return Token(access_token=issue_token(student))
+
+
+@router.post("/token", response_model=Token)
+async def token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db),
+):
+    """OAuth2 password-flow token endpoint (used by the Swagger 'Authorize' dialog).
+
+    Send the student's email in the `username` field. Returns the same JWT as /login.
+    """
+    try:
+        student = await authenticate_student(db, form_data.username, form_data.password)
+    except InvalidCredentialsError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+            headers={"WWW-Authenticate": "Bearer"},
         ) from None
     return Token(access_token=issue_token(student))
 
