@@ -1,29 +1,27 @@
 """Shared LLM access for graph nodes.
 
-All agent nodes call `complete(stage, system, user)`. Tests monkeypatch this
-single function (`app.features.tutor.graph.llm.complete`) so no real Claude call
-is made.
+All agent nodes call `complete(stage, system, user)`. The underlying chat model is
+built by the provider factory in `app.core.llm` (selected by LLM_PROVIDER /
+LLM_AUTH_MODE / LLM_MODEL), so the nodes are provider-agnostic. Tests monkeypatch
+this single function (`app.features.tutor.graph.llm.complete`) so no real call is made.
 """
 
 import json
 import re
 from typing import Any
 
-from langchain_anthropic import ChatAnthropic
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
-from app.core.config import settings
+from app.core.llm import get_chat_model
 
-_llm: ChatAnthropic | None = None
+_llm: BaseChatModel | None = None
 
 
-def _get_llm() -> ChatAnthropic:
+def _get_llm() -> BaseChatModel:
     global _llm
     if _llm is None:
-        kwargs: dict = {"model": settings.llm_model, "max_tokens": 1024, "timeout": 60}
-        if settings.anthropic_api_key:
-            kwargs["api_key"] = settings.anthropic_api_key
-        _llm = ChatAnthropic(**kwargs)
+        _llm = get_chat_model()
     return _llm
 
 

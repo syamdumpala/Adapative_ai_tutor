@@ -25,10 +25,11 @@ flowchart TD
     AuthSvc --> Core["core/<br/>config · database · security"]
     TutorSvc --> Core
     AuthDep --> Core
+    Pipeline --> LLM["core/llm.py<br/>(provider factory)"]
 
     AuthModel --> DB[(PostgreSQL)]
     TutorModel --> DB
-    Pipeline --> Claude([Claude<br/>claude-opus-4-8])
+    LLM --> Providers([Claude subscription ·<br/>Anthropic · OpenAI · Gemini])
 ```
 
 ## Request lifecycle — POST /tutor/ask
@@ -39,19 +40,20 @@ sequenceDiagram
     participant R as tutor/routes.py
     participant D as get_current_student
     participant S as tutor/service.py
-    participant P as pipeline.py (LangGraph)
+    participant G as graph/ (LangGraph multi-agent)
     participant DB as PostgreSQL
 
-    C->>R: POST /tutor/ask (JWT, question)
+    C->>R: POST /tutor/ask (JWT, question, session_id?)
     R->>D: resolve current student (verify JWT)
     D-->>R: Student
-    R->>R: check ANTHROPIC_API_KEY (else 503)
-    R->>S: ask_question(db, student, question)
-    S->>P: run_tutor_pipeline(question, name)
-    P-->>S: {analysis, answer, followups}
-    S->>DB: INSERT question_logs
-    S-->>R: result
-    R-->>C: 200 QuestionResponse
+    R->>R: llm_is_configured() (else 503)
+    R->>S: ask_question(db, student, question, session_id)
+    S->>DB: hydrate session state + append user message
+    S->>G: tutor_graph.ainvoke(state)
+    G-->>S: {action, output, ...} (hint / completed / escalation)
+    S->>DB: persist session state, history, evidence, profile
+    S-->>R: AskResponse
+    R-->>C: 200 AskResponse
 ```
 
 ## AI graph (LangGraph multi-agent, supervisor-routed)

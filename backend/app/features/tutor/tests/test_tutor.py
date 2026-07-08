@@ -9,8 +9,6 @@ import json
 
 import pytest
 
-from app.core.config import settings
-
 REGISTRATION = {
     "student_name": "Ada Lovelace",
     "student_id": "S001",
@@ -40,7 +38,8 @@ async def _fake_complete(stage: str, system: str, user: str) -> str:
 
 @pytest.fixture
 def mock_llm(monkeypatch):
-    monkeypatch.setattr(settings, "anthropic_api_key", "test-key")
+    # Treat the LLM as configured (provider-agnostic) and stub the completion seam.
+    monkeypatch.setattr("app.features.tutor.routes.llm_is_configured", lambda: True)
     monkeypatch.setattr("app.features.tutor.graph.llm.complete", _fake_complete)
 
 
@@ -58,8 +57,8 @@ async def test_ask_requires_auth(client):
     assert resp.status_code == 401
 
 
-async def test_ask_without_api_key_returns_503(client, monkeypatch):
-    monkeypatch.setattr(settings, "anthropic_api_key", None)
+async def test_ask_without_llm_configured_returns_503(client, monkeypatch):
+    monkeypatch.setattr("app.features.tutor.routes.llm_is_configured", lambda: False)
     headers = await _auth_header(client)
     resp = await client.post(
         "/tutor/ask", json={"question": "Why is the sky blue?"}, headers=headers

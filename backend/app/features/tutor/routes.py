@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.llm import LLMConfigError, llm_config_detail, llm_is_configured
 from app.features.auth.dependencies import get_current_student
 from app.features.auth.models import Student
 from app.features.tutor.schemas import AskRequest, AskResponse
@@ -26,11 +27,11 @@ async def ask(
     with the student's answer to continue the loop (evaluate → next hint / done /
     escalate).
     """
-    # if not settings.anthropic_api_key:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-    #         detail="ANTHROPIC_API_KEY is not configured on the server",
-    #     )
+    if not llm_is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"LLM provider is not configured: {llm_config_detail()}",
+        )
     try:
         return await ask_question(
             db,
@@ -39,6 +40,11 @@ async def ask(
             payload.session_id,
             payload.self_rating or 3,
         )
+    except LLMConfigError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"LLM provider is not usable: {exc}",
+        ) from exc
     except SessionNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Session not found"

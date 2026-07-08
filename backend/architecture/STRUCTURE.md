@@ -10,8 +10,9 @@ backend/
 │   ├── __init__.py
 │   ├── main.py                     # FastAPI app + lifespan (create tables), mounts api_router
 │   ├── core/                       # cross-cutting infrastructure (no feature logic)
-│   │   ├── config.py               # Settings (env / .env) — DB URL, JWT, Anthropic key, model
+│   │   ├── config.py               # Settings (env / .env) — DB URL, JWT, LLM provider/auth-mode/model, keys
 │   │   ├── database.py             # async SQLAlchemy engine, session factory, Base, get_db()
+│   │   ├── llm.py                   # LLM provider factory (subscription / Anthropic / OpenAI / Gemini)
 │   │   └── security.py             # password hashing + JWT encode/decode (framework-agnostic)
 │   ├── api/
 │   │   └── router.py               # ROUTE INDEX — aggregates every feature router
@@ -70,7 +71,7 @@ backend/
   - `service.py`    — business logic; raises domain exceptions, never HTTP exceptions.
   - `routes.py`     — `APIRouter` with `prefix="/<feature>"`; maps HTTP ↔ service.
   - `dependencies.py` — FastAPI dependencies specific to the feature (optional).
-  - `pipeline.py`   — AI/graph logic (tutor feature only; optional per feature).
+  - `graph/`        — AI/graph logic (tutor feature only; nodes + router + state).
   - `tests/test_<feature>.py` — unit/API tests for the feature.
 - **Route index**: `app/api/router.py` exposes `api_router`; every feature router is
   `include_router`-ed here. `main.py` mounts only `api_router`.
