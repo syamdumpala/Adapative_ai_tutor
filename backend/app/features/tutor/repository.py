@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.tutor.models import (
     ConversationHistory,
     EvidenceEvent,
+    SessionAnalytics,
     StudentProfile,
     TutorSession,
 )
@@ -30,6 +31,72 @@ async def get_or_create_profile(db: AsyncSession, student_id: int) -> StudentPro
 async def get_profile(db: AsyncSession, student_id: int) -> StudentProfile | None:
     result = await db.execute(select(StudentProfile).where(StudentProfile.student_id == student_id))
     return result.scalar_one_or_none()
+
+
+# Misconfidence Index priors (hackathon-conservative, per the PS#03 report §4.1 / §8 #2):
+# P(slip) and P(guess). Âᵢ = 1−P(slip) if the answer was correct, else P(guess).
+_MI_P_SLIP = 0.1
+_MI_P_GUESS = 0.2
+
+
+def misconfidence_index(confidence: float, correct: bool) -> float:
+    """Per-item Misconfidence Index signal mᵢ = −Cᵢ·(Cᵢ − Âᵢ) (signed).
+
+    Âᵢ = 1−P(slip) if the answer was correct, else P(guess). Sign convention (flipped so
+    higher = better, like mastery): positive → mastery / underconfidence; negative →
+    confidently wrong (misconception risk). Based on PS#03 §4.1.
+    """
+    a_hat = (1.0 - _MI_P_SLIP) if correct else _MI_P_GUESS
+    c = max(0.0, min(1.0, float(confidence)))
+    return round(-c * (c - a_hat), 4)
+
+
+async def record_session_analytics(db: AsyncSession, session: TutorSession, result: dict) -> None:
+    """Upsert one analytics snapshot for a completed session (subject vs mastery vs
+    confidence, plus the misconception category) — the grain the analytics charts read.
+
+    One row per session (keyed by session_id); re-completing a session updates it.
+    `result` may be the graph state or the final result dict — both carry `profile`,
+    `misconception`, and `misconception_detail`.
+    """
+    profile = result.get("profile") or {}
+    detail = result.get("misconception_detail") or {}
+    category = result.get("misconception") or detail.get("category")
+    if category in (None, "none", ""):
+        category = None
+    misconception = detail.get("misconception")
+    if misconception in (None, "none", ""):
+        misconception = None
+    mastery = float(profile.get("mastery") or 0.0)
+    confidence = float(profile.get("confidence") or 0.0)
+    # Signed Misconfidence Index for this snapshot. Analytics is captured when the
+    # concept is mastered, so the outcome is correct unless the evaluation says otherwise.
+    correct = bool((result.get("evaluation") or {}).get("correct", True))
+    mi = misconfidence_index(confidence, correct)
+
+    row = (
+        await db.execute(select(SessionAnalytics).where(SessionAnalytics.session_id == session.id))
+    ).scalar_one_or_none()
+    if row is None:
+        db.add(
+            SessionAnalytics(
+                student_id=session.student_id,
+                session_id=session.id,
+                subject_id=session.subject_id,
+                mastery=mastery,
+                confidence=confidence,
+                misconception_category=category,
+                misconception=misconception,
+                misconception_index=mi,
+            )
+        )
+    else:
+        row.subject_id = session.subject_id
+        row.mastery = mastery
+        row.confidence = confidence
+        row.misconception_category = category
+        row.misconception = misconception
+        row.misconception_index = mi
 
 
 async def get_session(db: AsyncSession, session_id: str, student_id: int) -> TutorSession | None:

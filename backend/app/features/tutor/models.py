@@ -144,6 +144,10 @@ class SessionAnalytics(Base):
     mastery: Mapped[float] = mapped_column(Float, default=0.0)  # 0..1
     confidence: Mapped[float] = mapped_column(Float, default=0.0)  # 0..1
     misconception_category: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    misconception: Mapped[str | None] = mapped_column(String(255), nullable=True)  # the value/name
+    # Signed Misconfidence Index (MI): +ve = mastery / underconfidence,
+    # -ve = confidently-wrong (misconception risk). See PS#03 report §4.1.
+    misconception_index: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

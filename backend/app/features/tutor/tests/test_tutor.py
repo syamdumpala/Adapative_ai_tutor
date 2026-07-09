@@ -148,11 +148,24 @@ async def test_completing_a_session_writes_analytics(seeded_client, mock_llm):
     assert pt["subject_name"] == "Fractions"
     assert 0.0 <= pt["mastery"] <= 1.0
     assert 0.0 <= pt["confidence"] <= 1.0
+    # The misconception value (name) and its category are both captured.
+    assert pt["misconception"] == "Missing prerequisite knowledge"
+    assert pt["misconception_category"] == "missing_prerequisite"
+    # Numeric Misconfidence Index: mᵢ = −C·(C − 0.9) for a correct completion (C = confidence).
+    c = pt["confidence"]
+    assert pt["misconception_index"] == pytest.approx(-c * (c - 0.9), abs=0.01)
 
     assert len(body["by_subject"]) == 1
     agg = body["by_subject"][0]
     assert agg["subject_id"] == "fractions"
     assert agg["sessions"] == 1
+
+    # Subject × misconception-category matrix has one bucket for this session.
+    assert len(body["misconception_matrix"]) == 1
+    cell = body["misconception_matrix"][0]
+    assert cell["subject_id"] == "fractions"
+    assert cell["misconception_category"] == "missing_prerequisite"
+    assert cell["count"] == 1
 
 
 async def test_unlimited_hints_no_escalation_on_repeated_wrong(client, mock_llm):
