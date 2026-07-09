@@ -1,0 +1,7 @@
+# Root-level dependencies.
+# Husky is installed here so the repo root owns the shared Git hooks
+# (frontend and backend keep their own dependency trees).
+/node_modules
+
+# macOS
+.DS_Store

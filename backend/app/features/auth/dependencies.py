@@ -1,5 +1,5 @@
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,11 +7,15 @@ from app.core.database import get_db
 from app.core.security import decode_token
 from app.features.auth.models import Student
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=True)
+# HTTP Bearer scheme: clients send `Authorization: Bearer <token>`, where the token
+# comes from POST /auth/login. In Swagger's "Authorize" dialog this is a single
+# field — paste the access_token from the login response. auto_error=False so a
+# missing/malformed header returns 401 (below), not HTTPBearer's default 403.
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_student(
-    token: str = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> Student:
     credentials_exc = HTTPException(
@@ -19,7 +23,9 @@ async def get_current_student(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    subject = decode_token(token)
+    if credentials is None:
+        raise credentials_exc
+    subject = decode_token(credentials.credentials)
     if subject is None:
         raise credentials_exc
     try:
@@ -32,3 +38,17 @@ async def get_current_student(
     if student is None:
         raise credentials_exc
     return student
+
+
+# Alias: any authenticated account (student or teacher).
+get_current_user = get_current_student
+
+
+async def require_teacher(current: Student = Depends(get_current_student)) -> Student:
+    """Guard for teacher/admin routes: 403 unless the account has the teacher role."""
+    if current.role != "teacher":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This action requires a teacher account",
+        )
+    return current

@@ -3,7 +3,7 @@
 VENV ?= .venv
 PY := $(VENV)/bin/python
 
-.PHONY: venv install install-dev run test lint format hooks
+.PHONY: venv install install-dev run migrate seed test lint format hooks
 
 venv:
 	python3 -m venv $(VENV)
@@ -16,6 +16,14 @@ install-dev:
 
 run:
 	$(PY) -m uvicorn app.main:app --reload
+
+# Additively sync the schema (create tables + add new columns). Idempotent.
+migrate:
+	$(PY) -m app.dbsync
+
+# Populate the configured database with the demo dataset (idempotent).
+seed:
+	$(PY) -m app.seed
 
 test:
 	$(PY) -m pytest

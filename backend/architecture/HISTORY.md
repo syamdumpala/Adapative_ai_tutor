@@ -12,7 +12,87 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-07-09 — UI-driven query APIs: catalog, teacher dashboard, sessions/history, roles
+
+**Author:** AI (Claude)
+**Summary:** Added the full read/write API surface the frontend needs, all with a
+shared **pagination + search + sort** contract (`app/core/query.py`: `Page[T]`
+envelope `{items,total,limit,offset,has_more}`, `list_params` dep, `apply_search`
+ILIKE, `apply_sort` with a `-field` descending token validated against a per-route
+allowlist → clean 422). New/changed:
+
+- **Auth/roles:** added `role` (student|teacher) to the user model; `register`
+  now auto-generates `student_id` when the client omits it (the sign-up form only
+  sends name/email/password/role) and accepts `role`; `require_teacher` guard;
+  richer `GET /auth/me` (split name + initials); `POST /auth/logout`.
+- **catalog feature** (new): `subjects`, `concepts` tables + `GET/POST /subjects`,
+  `GET/PATCH /subjects/{id}`, `GET/POST /topics`, `GET/PATCH /topics/{id}` (subjects
+  carry per-student `progress`).
+- **tutor reads** (`reads.py`): `GET /tutor/sessions` (chat list, status/subject
+  filter, recency sort), `GET /tutor/sessions/{id}`, `GET /tutor/sessions/{id}/messages`
+  (conversation history; role→sender maps user→maya/assistant→tutor; owner-or-teacher
+  guarded), `GET /me/profile`, `GET /me/performance` (the student performance record).
+- **teacher feature** (new): `GET /teacher/overview`, `/students` (roster; tone/status
+  filter, name/email search, improvement/name sort), `/students/{id}` (+`/topics`,
+  `/evidence`), `/topics` (+aggregates), `/topics/{id}` (+`/students`),
+  `/escalations` (filter status/trigger) + `POST /escalations/{id}/resolve`,
+  `POST /simulate-day`.
+- **Models:** new `StudentConceptState` (per-student×concept mastery — the grain the
+  teacher surface needs), `Misconception`, plus columns on `student_profile`
+  (roster/performance display fields), `tutor_sessions` (subject_id/title/hint_rung/
+  leak_checks), `conversation_history` (kind/payload), `teacher_escalations`
+  (trigger/status/excerpt/resolved_at/teacher_notes).
+- **Seed:** `app/seed.py` (`make seed`, idempotent) mirrors the frontend mock data
+  (6 subjects, 6 fraction concepts, Maya/Priya/Leo/Sam/Rohan + teacher, sessions,
+  one open escalation). Demo password `password123`.
+**Files:** `app/core/{query,display}.py`; `app/features/catalog/**`;
+`app/features/teacher/**`; `app/features/tutor/{models,schemas,service,routes,reads}.py`;
+`app/features/auth/{models,schemas,service,dependencies,routes}.py`; `app/seed.py`;
+`app/api/router.py`; `app/main.py`; `conftest.py`; `Makefile`; `pyproject.toml`.
+**Tests:** `make test` green (55 passed — new catalog/teacher/tutor-reads/auth-role
+suites + existing); ruff clean. Live end-to-end verified against SQLite through the
+Next.js BFF (login→cookie→proxy), incl. role guard 403 and cross-student 404.
+
+## 2026-07-09 — Switch auth to HTTP Bearer (fix Swagger "Authorize")
+
+**Author:** AI (Claude)
+**Summary:** Replaced the `OAuth2PasswordBearer(tokenUrl="/auth/login")` scheme with
+`HTTPBearer`. The OAuth2 password flow made Swagger POST a form (`username`/`password`)
+to `/auth/login`, but that route reads a JSON body, so "Authorize" always failed with 422. With `HTTPBearer`, Swagger's Authorize dialog is a single field: log in via
+`/auth/login`, paste the returned `access_token`. JSON login is unchanged (frontend
+unaffected). Used `auto_error=False` and an explicit `None` check so a missing/malformed
+header still returns **401** (HTTPBearer's default is 403), preserving existing behavior
+and tests.
+**Files:** Modified `app/features/auth/dependencies.py`.
+**Tests:** `pytest` green (16 passed — `test_me_requires_auth` / `test_ask_requires_auth`
+still assert 401); `ruff check` clean.
+
+## 2026-07-09 — Add local LLM provider (OpenAI-compatible: LM Studio / Ollama / vLLM)
+
+**Author:** AI (Claude)
+**Summary:** Extended the provider factory with a fourth option, `LLM_PROVIDER=local`,
+so the tutor can run entirely against a self-hosted model server. LM Studio, Ollama,
+vLLM, llama.cpp, etc. all expose an OpenAI-compatible `/v1/chat/completions` endpoint,
+so the new `_build_local` builder reuses the existing `langchain-openai` `ChatOpenAI`
+client with `base_url=LOCAL_BASE_URL` and a placeholder key — **no new dependency**.
+Config gained `local_base_url` / `local_api_key`; `llm_is_configured()` and
+`llm_config_detail()` treat `local` as configured once `LOCAL_BASE_URL` is set (no real
+key required). The pipeline, routes, and 503 gate are unchanged — the factory still
+returns a LangChain `BaseChatModel`. Switching to a local model is a pure `.env` change.
+**Files:**
+
+- Modified: `app/core/llm.py` (docstring + `_build_local` + local branch in
+  `get_chat_model` / `llm_is_configured` / `llm_config_detail`),
+  `app/core/config.py` (`local_base_url`, `local_api_key`), `.env.example`
+  (local provider section + LM Studio/Ollama/vLLM examples, Docker note),
+  `architecture/{DIAGRAM,STRUCTURE}.md`.
+- Added: `app/core/tests/{__init__.py,test_llm.py}` (gate + local-builder unit tests).
+  **Tests:** `pytest` green (16 passed, incl. 5 new `test_llm.py`); `ruff check` clean.
+  Builder verified to construct a `ChatOpenAI` without any network call; a live local
+  server was not exercised here (no LM Studio/Ollama running in this environment).
+
 ## 2026-07-09 — Agents via `create_agent`, JSON-restricted output, RAG removed
+
 **Author:** AI (Claude)
 **Summary:** Each LLM-backed agent is now built with LangChain's `create_agent`
 and restricted to emit JSON matching a per-agent Pydantic schema. A new
@@ -27,6 +107,7 @@ unchanged. The **RAG node/stub was removed** entirely (node, graph wiring, route
 branch, `docs` state field, evaluator's `docs` clearing, and the response `sources`
 population).
 **Files:**
+
 - Added: `app/features/tutor/graph/prompts/{__init__,diagnostic,misconception,planner,hint,guard,evaluator}.py`,
   `app/features/tutor/graph/schemas.py`.
 - Modified: `graph/llm.py` (new `run_agent`, removed `complete`), all six LLM nodes
@@ -35,11 +116,12 @@ population).
   `service.py` (dropped `sources` population), `tests/test_tutor.py` (mock the
   `run_agent` seam), `pyproject.toml` (E501 ignore for `graph/prompts/*`).
 - Removed: `graph/nodes/rag.py`.
-**Tests:** `make test` green (24 passing); ruff clean. Verified the subscription
-schema-hint path end-to-end (noisy markdown/extra-key reply → validated restricted
-JSON) and that the graph compiles without the `rag` node.
+  **Tests:** `make test` green (24 passing); ruff clean. Verified the subscription
+  schema-hint path end-to-end (noisy markdown/extra-key reply → validated restricted
+  JSON) and that the graph compiles without the `rag` node.
 
 ## 2026-07-08 — Interactive Diagnostic phase (doctor-style probing)
+
 **Author:** AI (Claude)
 **Summary:** Turned the Diagnostic agent into an interactive, multi-turn probing phase
 that runs BEFORE any teaching. Like a doctor, it asks the student `DIAGNOSTIC_ROUNDS`
@@ -62,6 +144,7 @@ sequence. NOTE: `architecture/tutor_graph_flow.pdf` and DIAGRAM Flow A are now o
 (no diagnostic loop) — regenerate when convenient.
 
 ## 2026-07-08 — Persist profile on EVERY answer (not just correct)
+
 **Author:** AI (Claude)
 **Summary:** The long-term profile (mastery, confidence, evidence_count,
 misconceptions) was only saved by the `memory` node, which runs solely on a correct
@@ -80,6 +163,7 @@ next session fetches the new values. Also fixed a blocking `F841` (removed an un
 profile persistence + next-session fetch.
 
 ## 2026-07-08 — Per-agent input/output dump (DEBUG_AGENT_IO)
+
 **Author:** AI (Claude)
 **Summary:** Added a lightweight, in-process capture of each agent's LLM input
 (system+user prompt) and output, independent of LangSmith. `graph/trace.py` uses a
@@ -96,6 +180,7 @@ list. Dev-only (verbose, exposes prompts); default false, enabled in local `.env
 printed dict + returned `agents`.
 
 ## 2026-07-08 — Fix LangSmith not tracing (auto-enable on key) + live verify
+
 **Author:** AI (Claude)
 **Summary:** Tracing wasn't working because `.env` had `LANGSMITH_TRACING=false`.
 Changed the flag to tri-state (`bool | None`): a present `LANGSMITH_API_KEY` now
@@ -111,6 +196,7 @@ as output.
 **Tests:** `pytest` — 20 passed; ruff clean; live LangSmith trace confirmed.
 
 ## 2026-07-08 — Makefile uses venv; scrub leaked key from .env.example
+
 **Author:** AI (Claude)
 **Summary:** `make run`/`test`/`lint` were resolving bare `uvicorn`/`pytest` from
 PATH, which could hit a system Python missing deps (`ModuleNotFoundError:
@@ -123,6 +209,7 @@ rotate that LangSmith key.**
 **Tests:** `pytest` — 19 passed; app boots via `.venv/bin/python -m uvicorn`.
 
 ## 2026-07-08 — Observability: LangSmith tracing (per-agent)
+
 **Author:** AI (Claude)
 **Summary:** Added opt-in LangSmith tracing so every tutor run is inspectable —
 each session appears as a `tutor-session:<id>` trace, each agent's LLM call as
@@ -141,6 +228,7 @@ Modified `app/core/config.py` (LangSmith settings), `app/main.py` (call at start
 **Tests:** `pytest` — 19 passed (3 new observability tests); ruff clean.
 
 ## 2026-07-08 — Security hardening + dependency audit
+
 **Author:** AI (Claude)
 **Summary:** Added CORS middleware (configurable `CORS_ORIGINS`, defaults to the
 Next.js dev origin `http://localhost:3000`; specific origins + credentials, never
@@ -155,6 +243,7 @@ CVEs in build-time `setuptools 65.5.0` — upgraded to ≥78.1.1; audit now clea
 preflight verified.
 
 ## 2026-07-08 — Reconcile LLM-provider factory with the multi-agent graph (post-merge)
+
 **Author:** AI (Claude)
 **Summary:** Pulled another branch's configurable LLM-provider feature (`core/llm.py`
 factory + `config.py` settings + provider deps) which had been written against the
@@ -169,6 +258,7 @@ now patches `routes.llm_is_configured`). Updated the stale request-lifecycle dia
 **Tests:** `pytest` — 16 passed; ruff clean; backend boots + smoke-tested vs PostgreSQL.
 
 ## 2026-07-08 — Multi-agent LangGraph tutor (replaces 3-node pipeline)
+
 **Author:** AI (Claude)
 **Summary:** Rebuilt the tutor feature per the LangGraph AI Tutor guides into a
 supervisor-routed multi-agent graph with per-session state. Added a graph package
@@ -191,6 +281,7 @@ Removed `app/features/tutor/pipeline.py`.
 Smoke-tested against local PostgreSQL.
 
 ## 2026-07-08 — Add OAuth2 form token endpoint for Swagger Authorize
+
 **Author:** AI (Claude)
 **Summary:** The Swagger UI "Authorize" dialog (OAuth2 password flow) posts
 form-encoded `username`/`password` to the token URL, which the JSON `/auth/login`
@@ -204,6 +295,7 @@ leave client_id/client_secret blank, no scopes.
 **Tests:** `pytest` — 12 passed; ruff clean.
 
 ## 2026-07-08 — Configurable LLM provider (subscription in dev, API keys in prod)
+
 **Author:** AI (Claude)
 **Summary:** Decoupled the tutoring pipeline from a single hard-wired Anthropic API
 key. Added a provider **factory** (`app/core/llm.py`) selected purely by env:
@@ -220,17 +312,19 @@ mode is dev-only (a subscription does not include API access; the OAuth token is
 licensed for individual Claude Code / Agent SDK use), which is why prod is
 API-key-based.
 **Files:**
+
 - Added: `app/core/llm.py`.
 - Modified: `app/core/config.py` (provider settings + per-provider keys),
   `app/features/tutor/pipeline.py` (uses the factory), `app/features/tutor/routes.py`
   (provider-aware 503), `app/features/tutor/tests/test_tutor.py`, `.env.example`,
   `requirements.txt` (+langchain-openai, +langchain-google-genai),
   `requirements-dev.txt` (+claude-agent-sdk), `architecture/{DIAGRAM,STRUCTURE}.md`.
-**Tests:** Unit tests updated to patch `llm_is_configured` (pipeline still mocked;
-no real LLM calls). NOTE: suite not run here — the project has no Python 3.11+ venv
-yet (system Python is 3.9); run `make test` once a venv exists.
+  **Tests:** Unit tests updated to patch `llm_is_configured` (pipeline still mocked;
+  no real LLM calls). NOTE: suite not run here — the project has no Python 3.11+ venv
+  yet (system Python is 3.9); run `make test` once a venv exists.
 
 ## 2026-07-08 — Refactor to feature-based architecture
+
 **Author:** AI (Claude)
 **Summary:** Restructured the flat `app/` layout into a robust feature-based
 architecture. Introduced a `core/` layer (config, database, security), a route
@@ -241,6 +335,7 @@ persists interactions, unit tests with an in-memory SQLite fixture, ruff + pytes
 config, a pre-commit linting hook, a Makefile, and this `architecture/` folder as
 the source of truth.
 **Files:**
+
 - Added: `app/core/{config,database,security}.py`, `app/api/router.py`,
   `app/features/auth/{models,schemas,service,dependencies,routes}.py`,
   `app/features/tutor/{models,schemas,pipeline,service,routes}.py`,
@@ -250,10 +345,11 @@ the source of truth.
 - Removed (flat layout): `app/{config,database,models,schemas,auth}.py`,
   `app/routers/`, `app/ai/`.
 - Modified: `app/main.py` (mounts route index, imports feature models).
-**Tests:** `pytest` (auth + tutor suites) run green; app smoke-tested against
-local PostgreSQL (register/login/me/ask flow).
+  **Tests:** `pytest` (auth + tutor suites) run green; app smoke-tested against
+  local PostgreSQL (register/login/me/ask flow).
 
 ## 2026-07-08 — Initial backend scaffold
+
 **Author:** AI (Claude)
 **Summary:** Initialized FastAPI backend with async SQLAlchemy/PostgreSQL, JWT
 auth (register/login/me), and an agentic LangGraph + LangChain tutoring pipeline

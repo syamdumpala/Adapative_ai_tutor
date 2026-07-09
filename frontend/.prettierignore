@@ -1,0 +1,17 @@
+# Build output & generated files
+.next/
+out/
+build/
+next-env.d.ts
+
+# Dependencies
+node_modules/
+
+# Lockfiles (let the package manager own formatting)
+package-lock.json
+
+# Assets
+public/
+
+# Markdown docs are hand-formatted
+docs/

@@ -16,7 +16,7 @@ class Settings(BaseSettings):
 
     # LLM provider selection (see app/core/llm.py). All env-driven, so switching
     # dev <-> prod is a config change, never a code change.
-    llm_provider: str = "anthropic"  # anthropic | openai | google
+    llm_provider: str = "anthropic"  # anthropic | openai | google | local
     llm_auth_mode: str = "subscription"  # subscription | api_key (Anthropic only)
     llm_model: str = "claude-opus-4-8"  # any model the chosen provider supports
 
@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None  # prod: Anthropic API key
     openai_api_key: str | None = None  # prod: OpenAI API key
     google_api_key: str | None = None  # prod: Google Gemini API key
+
+    # Local LLM server (LM Studio / Ollama / vLLM / llama.cpp — OpenAI-compatible).
+    # Set LLM_PROVIDER=local and point LOCAL_BASE_URL at the server's /v1 endpoint.
+    local_base_url: str | None = None  # e.g. http://localhost:1234/v1 (LM Studio)
+    local_api_key: str | None = None  # most local servers ignore this; any placeholder works
 
     # Observability — LangSmith tracing (per-agent inputs/outputs/models).
     # Tri-state: a present LANGSMITH_API_KEY auto-enables tracing. Set
