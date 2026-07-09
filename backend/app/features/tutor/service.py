@@ -32,6 +32,7 @@ async def ask_question(
     question: str,
     session_id: str | None = None,
     self_rating: int = 3,
+    subject_id: str | None = None,
 ) -> AskResponse:
     if session_id:
         session = await get_session(db, session_id, student.id)
@@ -54,7 +55,12 @@ async def ask_question(
     else:
         session_id = uuid4().hex[:36]
         session = TutorSession(
-            id=session_id, student_id=student.id, concept=question, status="active"
+            id=session_id,
+            student_id=student.id,
+            subject_id=subject_id or "fractions",
+            concept=question,
+            title=question[:255],
+            status="active",
         )
         db.add(session)
         await db.flush()
@@ -131,6 +137,8 @@ async def ask_question(
     else:  # completed
         awaiting_type, session.status = None, "completed"
     result["awaiting"] = awaiting_type
+    session.hint_rung = result.get("hint_level") or session.hint_rung
+    session.leak_checks = result.get("leak_checks", session.leak_checks)
     session.state = serialize(result)
 
     await db.commit()

@@ -29,7 +29,7 @@ flowchart TD
 
     AuthModel --> DB[(PostgreSQL)]
     TutorModel --> DB
-    LLM --> Providers([Claude subscription ·<br/>Anthropic · OpenAI · Gemini])
+    LLM --> Providers([Claude subscription ·<br/>Anthropic · OpenAI · Gemini ·<br/>Local OpenAI-compatible])
     Pipeline -.->|traces per agent| LS([LangSmith<br/>observability])
 ```
 

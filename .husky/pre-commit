@@ -1,0 +1,42 @@
+# Root pre-commit orchestrator (Husky owns the single Git hook for the monorepo).
+#
+# It runs the checks for whichever side(s) a commit actually touches:
+#   • frontend/  -> lint-staged (ESLint --fix + Prettier) + tsc --noEmit
+#   • backend/   -> the pre-commit framework (.pre-commit-config.yaml: ruff, etc.)
+#
+# Git invokes hooks from the repository root; we pin to it defensively.
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+# Staged files (Added/Copied/Modified/Renamed), relative to the repo root.
+STAGED="$(git diff --cached --name-only --diff-filter=ACMR)"
+[ -z "$STAGED" ] && exit 0
+
+# --- Frontend --------------------------------------------------------------
+if printf '%s\n' "$STAGED" | grep -q '^frontend/'; then
+  echo "▶ Frontend checks (lint-staged + typecheck)…"
+  (
+    cd frontend
+    npx --no-install lint-staged
+    npm run --silent typecheck
+  )
+fi
+
+# --- Backend ---------------------------------------------------------------
+# Delegates to the backend's own pre-commit framework; this hook never edits
+# backend code. The framework self-scopes to backend/ via `files: ^backend/`.
+if printf '%s\n' "$STAGED" | grep -q '^backend/'; then
+  echo "▶ Backend checks (pre-commit framework)…"
+  if [ -x "backend/.venv/bin/pre-commit" ]; then
+    backend/.venv/bin/pre-commit run --config .pre-commit-config.yaml
+  elif command -v pre-commit >/dev/null 2>&1; then
+    pre-commit run --config .pre-commit-config.yaml
+  else
+    echo "⚠ pre-commit not found (expected backend/.venv/bin/pre-commit)."
+    echo "  Enable backend checks with: make -C backend install-dev"
+    echo "  Skipping backend checks for this commit."
+  fi
+fi

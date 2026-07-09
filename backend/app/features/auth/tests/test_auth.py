@@ -89,3 +89,67 @@ async def test_login_wrong_password(client):
 async def test_me_requires_auth(client):
     resp = await client.get("/auth/me")
     assert resp.status_code == 401
+
+
+async def test_register_autogenerates_student_id(client):
+    """The sign-up form omits student_id; the server must mint a unique one."""
+    resp = await client.post(
+        "/auth/register",
+        json={"student_name": "Nova Kim", "email": "nova@example.com", "password": "secret123"},
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["student_id"]  # auto-generated
+    assert body["role"] == "student"
+
+
+async def test_register_teacher_and_role_guard(client):
+    # A student token is rejected by a teacher route (403).
+    await _register(client)
+    student_login = await client.post(
+        "/auth/login", json={"email": REGISTRATION["email"], "password": REGISTRATION["password"]}
+    )
+    student_token = student_login.json()["access_token"]
+    denied = await client.get(
+        "/teacher/overview", headers={"Authorization": f"Bearer {student_token}"}
+    )
+    assert denied.status_code == 403
+
+    # A teacher token is accepted.
+    await client.post(
+        "/auth/register",
+        json={
+            "student_name": "Ms. Alvarez",
+            "email": "teach@example.com",
+            "password": "secret123",
+            "role": "teacher",
+        },
+    )
+    teacher_login = await client.post(
+        "/auth/login", json={"email": "teach@example.com", "password": "secret123"}
+    )
+    teacher_token = teacher_login.json()["access_token"]
+    allowed = await client.get(
+        "/teacher/overview", headers={"Authorization": f"Bearer {teacher_token}"}
+    )
+    assert allowed.status_code == 200
+
+
+async def test_me_returns_split_name(client):
+    await client.post(
+        "/auth/register",
+        json={
+            "student_name": "Grace Hopper",
+            "email": "grace@example.com",
+            "password": "secret123",
+        },
+    )
+    login = await client.post(
+        "/auth/login", json={"email": "grace@example.com", "password": "secret123"}
+    )
+    me = await client.get(
+        "/auth/me", headers={"Authorization": f"Bearer {login.json()['access_token']}"}
+    )
+    body = me.json()
+    assert body["first_name"] == "Grace" and body["last_name"] == "Hopper"
+    assert body["full_name"] == "Grace Hopper" and body["initials"] == "GH"

@@ -1,0 +1,12 @@
+{
+  "name": "adaptive-ai-tutor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Monorepo root. Owns the shared Git pre-commit hook that runs frontend and backend checks. See .husky/pre-commit.",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}
