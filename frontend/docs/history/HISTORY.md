@@ -4,6 +4,67 @@ Append-only changelog. Newest first.
 
 ---
 
+## 2026-07-10 — Teacher dashboard chrome: logo-home, back button, account menu
+
+Reworked the teacher toolbar so navigation and account actions read like a real
+app instead of loose buttons.
+
+- **Mira logo = Home** — the Topbar logo now navigates the teacher to Home
+  (`useTutorShell.onLogoClick` routes to `teacherNav.goHome()` for teachers);
+  the standalone Home icon button was removed from the toolbar.
+- **Back button** — `useTeacherNav` gained a navigation stack (`goBack`,
+  `canGoBack`); the toolbar's left side is now a "‹ Teacher · …" back control
+  that returns to the previous screen and is disabled at the Home root. Each
+  frame snapshots the full context (`screen` + `topicId` + `studentId`), so
+  walking back through the topic↔student cross-links restores the exact entity
+  that was shown, not just the screen type. `goHome` clears the stack.
+- **Account menu** — the direct "Log out" button became a profile **avatar**
+  (`teacher/TeacherAccountMenu.tsx`) that opens a dropdown with **Profile** and
+  **Log out**. Profile opens the account modal.
+- **Shared profile modal** — `student/StudentModal.tsx` was generalized to
+  `AccountModal` (moved to the tutor root) and is now rendered for both roles;
+  the teacher's Profile action opens it via `openModal("profile")` (live from
+  `/me/profile`). Its pre-load fallback is now role-neutral (no fabricated
+  student surname / "Student" label).
+- **Verify** — `npm run check` + `next build` green. A multi-agent adversarial
+  review of the diff caught and fixed: the back-stack losing entity context, the
+  student-specific profile fallback leaking to teachers, and missing menu
+  a11y (`aria-haspopup`/`aria-expanded`, `role=menu`, Escape-to-close).
+
+## 2026-07-09 — Rename "Subject" → "Topic" (UI) + teacher "Add topic" flow
+
+Aligned the product vocabulary with what the home screen actually shows, and
+gave teachers a way to grow the catalog.
+
+- **Terminology** — the student-facing domain object is now **Topic**
+  everywhere in the frontend: the `Topic` type, `data/topics.ts`
+  (`TOPICS`/`topicById`), `hooks/useTopics.ts`, `student/TopicCard` +
+  `student/TopicGrid`, the chat-state field `topicId`, `MiraChat.openTopic`, and
+  all visible copy ("Topics", "Pick a topic to begin", "Topics available",
+  "Back to topics", etc.). **The backend contract is untouched**: the catalog
+  client `api/catalog.ts` is the single seam that still speaks the backend's
+  `subject` vocabulary (`GET/POST /subjects`, `subject_id`, `subjects_available`).
+- **Teacher "Add topic"** — new catalog screen (`teacher/TopicCatalog.tsx`,
+  `TeacherScreen: "catalog"`) reachable from a "＋ Topic" button in
+  `TeacherToolbar`. `teacher/TopicCreateModal.tsx` + `teacher/topicForm.ts`
+  collect name/description/glyph/accent/caption, auto-slugify the id to the
+  backend's `^[a-z0-9_-]+$`, validate (empty name; **duplicate by name**, since
+  ids are decoupled from names — seeds use `"1".."6"`), clamp field lengths to
+  the backend caps, and `createTopic()` POSTs to the teacher-gated `/subjects`.
+  New topics prepend to the catalog and appear on every student's home.
+- **Live topic resolution in chat** — `ChatView`/`ChatsSidebar` now resolve the
+  open chat's topic from the **live** catalog (`useTopics`) with the static
+  catalog as fallback, so a teacher-created (slug-id) topic no longer renders as
+  "Fractions" in the chat header/sidebar.
+- **Card descriptions truncate** — topic cards on the **teacher catalog and the
+  student home** show only the first 5 words + "…" (full text on hover via
+  `title`), via the shared `lib/text.ts#truncateWords`, so a long teacher-authored
+  paragraph no longer balloons a card.
+- **Verify** — `npm run check` (typecheck + lint + format) and `next build` are
+  green; guardrails respected (modal logic split into `topicForm.ts` to stay
+  under the 200-line/50-line limits). A multi-agent adversarial review of the
+  diff surfaced these two behavioral gaps + the length-cap gap, all fixed.
+
 ## 2026-07-09 — Remove demo scaffolding; make the chat fully live
 
 Stripped the prototype affordances so the app behaves like a real product driven

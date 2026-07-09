@@ -1,38 +1,38 @@
-import { useSubjects } from "../hooks/useSubjects";
+import { useTopics } from "../hooks/useTopics";
 import { ProfileMenu } from "./ProfileMenu";
-import { SubjectCard } from "./SubjectCard";
+import { TopicCard } from "./TopicCard";
 
-interface SubjectGridProps {
+interface TopicGridProps {
   name: string;
   initials: string;
-  onOpenSubject: (id: string) => void;
+  onOpenTopic: (id: string) => void;
   onProfile: () => void;
   onPerformance: () => void;
   onLogout: () => void;
 }
 
-/** Subjects header (greeting + account menu) over the subject card grid. */
-export function SubjectGrid({
+/** Topics header (greeting + account menu) over the topic card grid. */
+export function TopicGrid({
   name,
   initials,
-  onOpenSubject,
+  onOpenTopic,
   onProfile,
   onPerformance,
   onLogout,
-}: SubjectGridProps) {
-  const subjects = useSubjects();
+}: TopicGridProps) {
+  const topics = useTopics();
   return (
     <>
       <div className="mb-[clamp(18px,2.6vw,30px)] flex animate-fade-up flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="mb-[9px] font-mono text-[10px] uppercase tracking-[0.14em] text-ink3">
-            Subjects
+            Topics
           </div>
           <h1 className="text-[clamp(25px,4vw,38px)] font-extrabold">
-            Hi, {name}. Pick a subject to begin.
+            Hi, {name}. Pick a topic to begin.
           </h1>
           <p className="mt-2 max-w-[48ch] text-[14px] text-ink2">
-            Open any subject and just ask — Mira guides you with hints, never
+            Open any topic and just ask — Mira guides you with hints, never
             straight answers.
           </p>
         </div>
@@ -45,11 +45,11 @@ export function SubjectGrid({
         />
       </div>
       <div className="grid gap-[clamp(12px,1.6vw,18px)] [grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))]">
-        {subjects.map((subject) => (
-          <SubjectCard
-            key={subject.id}
-            subject={subject}
-            onClick={() => onOpenSubject(subject.id)}
+        {topics.map((topic) => (
+          <TopicCard
+            key={topic.id}
+            topic={topic}
+            onClick={() => onOpenTopic(topic.id)}
           />
         ))}
       </div>

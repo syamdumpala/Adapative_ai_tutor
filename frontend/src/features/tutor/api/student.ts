@@ -1,19 +1,6 @@
 import { apiGet, type Page, qs } from "@/lib/api";
-import type { Tone } from "@/lib/tones";
-import type { Subject } from "../types";
 
 /** Student-facing API client + mappers onto the existing view types. */
-
-interface SubjectDTO {
-  id: string;
-  name: string;
-  glyph: string;
-  tone: string;
-  desc: string;
-  meta: string;
-  is_new: boolean;
-  progress: number;
-}
 
 export interface ProfileDTO {
   full_name: string;
@@ -64,24 +51,6 @@ export interface MessageDTO {
   kind: string;
   text: string;
   created_at: string;
-}
-
-function toSubject(dto: SubjectDTO): Subject {
-  return {
-    id: dto.id,
-    name: dto.name,
-    glyph: dto.glyph,
-    tone: dto.tone as Tone,
-    desc: dto.desc,
-    meta: dto.meta,
-    progress: dto.progress,
-    isNew: dto.is_new,
-  };
-}
-
-export async function fetchSubjects(): Promise<Subject[]> {
-  const page = await apiGet<Page<SubjectDTO>>(`/subjects${qs({ limit: 100 })}`);
-  return page.items.map(toSubject);
 }
 
 export function fetchProfile(): Promise<ProfileDTO> {

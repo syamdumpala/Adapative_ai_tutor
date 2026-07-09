@@ -6,7 +6,7 @@
  * (`bg-${tone}-s` would be invisible to the compiler and get purged).
  */
 
-/** Subject / topic accent tone. */
+/** Topic accent tone. */
 export type Tone = "green" | "violet" | "amber" | "coral";
 
 /** A learner's overall health, used for chips and avatar gradients. */

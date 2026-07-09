@@ -39,7 +39,7 @@ DEMO_PASSWORD = "password123"
 
 SUBJECTS = [
     (
-        "fractions",
+        "1",
         "Fractions",
         "½",
         "green",
@@ -48,7 +48,7 @@ SUBJECTS = [
         False,
     ),
     (
-        "decimals",
+        "2",
         "Decimals",
         ".5",
         "violet",
@@ -57,7 +57,7 @@ SUBJECTS = [
         True,
     ),
     (
-        "percentages",
+        "3",
         "Percentages",
         "%",
         "amber",
@@ -65,10 +65,10 @@ SUBJECTS = [
         "5 concepts",
         False,
     ),
-    ("integers", "Integers", "±", "coral", "Negatives & the number line", "5 concepts", False),
-    ("geometry", "Geometry", "△", "green", "Angles, area & perimeter", "8 concepts", False),
+    ("4", "Integers", "±", "coral", "Negatives & the number line", "5 concepts", False),
+    ("5", "Geometry", "△", "green", "Angles, area & perimeter", "8 concepts", False),
     (
-        "ratios",
+        "6",
         "Ratios & Rates",
         "a:b",
         "violet",
@@ -226,7 +226,7 @@ STUDENTS = [
 MAYA_SESSIONS = [
     (
         "seed_f1",
-        "fractions",
+        "1",
         "Comparing 1/2 and 1/3",
         "completed",
         0,
@@ -243,7 +243,7 @@ MAYA_SESSIONS = [
     ),
     (
         "seed_d1",
-        "decimals",
+        "2",
         "Rounding 3.47 to tenths",
         "completed",
         0,
@@ -258,7 +258,7 @@ MAYA_SESSIONS = [
     ),
     (
         "seed_p1",
-        "percentages",
+        "3",
         "What is 25% of 80?",
         "pending",
         1,
@@ -297,7 +297,7 @@ async def _upsert_catalog(db: AsyncSession) -> None:
             db.add(
                 Concept(
                     id=cid,
-                    subject_id="fractions",
+                    subject_id="1",
                     name=name,
                     glyph=glyph,
                     tone=tone,
@@ -419,7 +419,7 @@ async def _seed_rohan_escalation(db: AsyncSession, student: Student) -> None:
         TutorSession(
             id=session_id,
             student_id=student.id,
-            subject_id="fractions",
+            subject_id="1",
             concept="Comparing 4/5 and 5/6",
             title="Comparing 4/5 and 5/6",
             status="escalated",

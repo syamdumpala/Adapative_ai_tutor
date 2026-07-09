@@ -2,10 +2,10 @@
 
 import { Toast } from "@/components";
 import { MIRA_BACKDROP } from "@/lib/backdrop";
+import { AccountModal } from "./AccountModal";
 import { DEFAULT_STUDENT_NAME } from "./data/student";
 import { type TutorShell, useTutorShell } from "./hooks/useTutorShell";
 import { StudentArea } from "./student/StudentArea";
-import { StudentModal } from "./student/StudentModal";
 import { TeacherDashboard } from "./teacher/TeacherDashboard";
 import { Topbar } from "./Topbar";
 import type { Role } from "./types";
@@ -29,6 +29,9 @@ function AppBody({
         students={shell.students}
         bp={shell.bp}
         onLogout={shell.onLogout}
+        onProfile={() => shell.openModal("profile")}
+        name={studentName}
+        initials={shell.initials}
       />
     );
   }
@@ -51,7 +54,6 @@ export function TutorApp({
   initialRole = "student",
 }: TutorAppProps) {
   const shell = useTutorShell(studentName, initialRole);
-  const isStudent = shell.role === "student";
 
   return (
     <div
@@ -60,14 +62,12 @@ export function TutorApp({
     >
       <Topbar onLogoClick={shell.onLogoClick} />
       <Toast message={shell.toast.message} />
-      {isStudent && (
-        <StudentModal
-          modal={shell.modal}
-          onClose={shell.closeModal}
-          name={studentName}
-          initials={shell.initials}
-        />
-      )}
+      <AccountModal
+        modal={shell.modal}
+        onClose={shell.closeModal}
+        name={studentName}
+        initials={shell.initials}
+      />
       <AppBody shell={shell} studentName={studentName} />
     </div>
   );

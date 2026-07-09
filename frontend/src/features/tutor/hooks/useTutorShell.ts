@@ -51,7 +51,8 @@ export function useTutorShell(
     modal,
     students,
     initials: initialsOf(studentName),
-    onLogoClick: () => role === "student" && chat.goHome(),
+    onLogoClick: () =>
+      role === "student" ? chat.goHome() : teacherNav.goHome(),
     openModal: setModal,
     closeModal: () => setModal(null),
     onLogout: () => void signOut().finally(() => router.push("/login")),

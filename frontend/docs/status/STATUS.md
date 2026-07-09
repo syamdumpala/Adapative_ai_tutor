@@ -30,8 +30,8 @@ Claude Design handoff on top of a reusable component library.
 | Design tokens       | ✅     | `src/app/globals.css` (Tailwind `@theme`) + `next/font`     |
 | Component library   | ✅     | `src/components/` — 15 primitives + `README.md` catalog     |
 | Shared hooks / libs | ✅     | `useResponsive`, `useToast`, `tones`, `cn`, `backdrop`      |
-| Tutor · student     | ✅     | Home (chats + subjects), guided chat, hint ladder, quiz     |
-| Tutor · teacher     | ✅     | Topics + students panels, topic & student drill-downs       |
+| Tutor · student     | ✅     | Home (chats + topics), guided chat, hint ladder, quiz       |
+| Tutor · teacher     | ✅     | Topics + students panels, drill-downs, topic catalog + create |
 | Auth (Login)        | ✅     | Real sign-in / sign-up workflow + validation (API seam only) |
 | Routes              | ✅     | `/` (`?role=`), `/login` (`?mode`/`?role`)                  |
 
@@ -44,7 +44,8 @@ component catalog.
 | Surface | Status | Source |
 | ------- | ------ | ------ |
 | Auth (login / register / logout / session) | ✅ | `/api/auth/*` → httpOnly cookie; `/` is session-guarded and resolves role from `/auth/me` |
-| Subjects grid | ✅ | `GET /subjects` (per-student progress) |
+| Topics grid (student home) | ✅ | `GET /subjects` (per-student progress), mapped onto `Topic` in `api/catalog.ts` |
+| Teacher topic catalog + create | ✅ | `GET /subjects` list + teacher-gated `POST /subjects` (`createTopic`) |
 | Profile / performance modals | ✅ | `/me/profile` · `/me/performance` |
 | "Your chats" rail + transcripts | ✅ | conversation-history API (`/tutor/sessions` + `/{id}/messages`) |
 | Teacher dashboard (roster / student / topic) | ✅ | `/teacher/*` assembled in `useTeacherStudents` |

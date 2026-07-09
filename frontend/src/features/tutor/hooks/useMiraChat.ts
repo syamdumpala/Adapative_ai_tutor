@@ -18,7 +18,7 @@ import { type ChatAction, chatReducer } from "../state/chatReducer";
 
 export interface MiraChat {
   state: ChatEngineState;
-  openSubject: (subjectId: string) => void;
+  openTopic: (topicId: string) => void;
   openChat: (id: string) => void;
   goHome: () => void;
   sendMessage: (text: string) => void;
@@ -37,7 +37,7 @@ function runOpen(
   dispatch({
     type: "openExisting",
     id,
-    subjectId: summary.subjectId,
+    topicId: summary.topicId,
     title: summary.title,
     status: summary.status,
     hintRung: summary.hintRung,
@@ -60,7 +60,7 @@ async function runSend(
   sending.current = true;
   dispatch({ type: "sendUser", text: trimmed });
   try {
-    const res = await askTutor(trimmed, state.sessionId, state.subjectId);
+    const res = await askTutor(trimmed, state.sessionId, state.topicId);
     dispatch({
       type: "tutorReply",
       sessionId: res.session_id,
@@ -103,7 +103,7 @@ export function useMiraChat(): MiraChat {
 
   return {
     state,
-    openSubject: (subjectId) => dispatch({ type: "openDraft", subjectId }),
+    openTopic: (topicId) => dispatch({ type: "openDraft", topicId }),
     openChat: (id) => runOpen(dispatch, state, id),
     goHome: () => dispatch({ type: "goHome" }),
     sendMessage: (text) => void runSend(dispatch, sending, state, text),

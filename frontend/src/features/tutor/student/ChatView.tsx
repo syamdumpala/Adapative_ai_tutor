@@ -1,4 +1,5 @@
-import { subjectById } from "../data/subjects";
+import { topicById } from "../data/topics";
+import { useTopics } from "../hooks/useTopics";
 import type { MiraChat } from "../hooks/useMiraChat";
 import { ChatHeader } from "./ChatHeader";
 import { Composer } from "./Composer";
@@ -12,12 +13,14 @@ interface ChatViewProps {
 /** Single-conversation screen: header, transcript, and composer/banner. */
 export function ChatView({ chat }: ChatViewProps) {
   const { state } = chat;
-  const subject = subjectById(state.subjectId);
+  const topics = useTopics();
+  const topic =
+    topics.find((t) => t.id === state.topicId) ?? topicById(state.topicId);
 
   return (
     <main className="flex min-h-0 flex-1 flex-col" data-screen="student-chat">
       <ChatHeader
-        subject={subject}
+        topic={topic}
         status={state.status}
         title={state.title}
         onBack={chat.goHome}
@@ -35,9 +38,7 @@ export function ChatView({ chat }: ChatViewProps) {
             </div>
           )}
           {state.locked ? (
-            <CompletionBanner
-              onNewChat={() => chat.openSubject(state.subjectId)}
-            />
+            <CompletionBanner onNewChat={() => chat.openTopic(state.topicId)} />
           ) : (
             <Composer hintRung={state.hintRung} onSend={chat.sendMessage} />
           )}

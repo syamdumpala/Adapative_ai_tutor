@@ -1,9 +1,9 @@
-import type { Subject } from "../types";
+import type { Topic } from "../types";
 
-/** The subject catalog shown on the student home screen. */
-export const SUBJECTS: Subject[] = [
+/** The topic catalog shown on the student home screen. */
+export const TOPICS: Topic[] = [
   {
-    id: "fractions",
+    id: "1",
     name: "Fractions",
     glyph: "½",
     tone: "green",
@@ -12,7 +12,7 @@ export const SUBJECTS: Subject[] = [
     progress: 0.42,
   },
   {
-    id: "decimals",
+    id: "2",
     name: "Decimals",
     glyph: ".5",
     tone: "violet",
@@ -22,7 +22,7 @@ export const SUBJECTS: Subject[] = [
     isNew: true,
   },
   {
-    id: "percentages",
+    id: "3",
     name: "Percentages",
     glyph: "%",
     tone: "amber",
@@ -31,7 +31,7 @@ export const SUBJECTS: Subject[] = [
     progress: 0,
   },
   {
-    id: "integers",
+    id: "4",
     name: "Integers",
     glyph: "±",
     tone: "coral",
@@ -40,7 +40,7 @@ export const SUBJECTS: Subject[] = [
     progress: 0,
   },
   {
-    id: "geometry",
+    id: "5",
     name: "Geometry",
     glyph: "△",
     tone: "green",
@@ -49,7 +49,7 @@ export const SUBJECTS: Subject[] = [
     progress: 0,
   },
   {
-    id: "ratios",
+    id: "6",
     name: "Ratios & Rates",
     glyph: "a:b",
     tone: "violet",
@@ -59,6 +59,6 @@ export const SUBJECTS: Subject[] = [
   },
 ];
 
-export function subjectById(id: string): Subject {
-  return SUBJECTS.find((subject) => subject.id === id) ?? SUBJECTS[0]!;
+export function topicById(id: string): Topic {
+  return TOPICS.find((topic) => topic.id === id) ?? TOPICS[0]!;
 }

@@ -12,6 +12,27 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-07-09 — Subject ids are numeric (1..6) instead of slugs
+
+**Author:** AI (Claude)
+**Summary:** Changed subject ids from slugs (`fractions`, `decimals`, …) to
+incremental numbers (`"1"`..`"6"`, catalog order). Concept ids are unchanged
+(still `partition`, etc.); only `subjects.id` and the values that reference it
+moved to numbers. Updated the seed (SUBJECTS ids, `concepts.subject_id`, the
+demo sessions' `subject_id`, the escalation), the tutor default
+(`subject_id or "1"`), and the catalog tests. Added an idempotent data migration
+`app/migrate_subjects.py` (`make migrate-subjects`) that renames existing
+subjects by creating the new numeric row, repointing `concepts.subject_id` (FK)
+and `tutor_sessions.subject_id`, then deleting the old row — ran it on the live
+Postgres (6 subjects renamed; concepts now under `1`, sessions repointed).
+Frontend counterpart: static `SUBJECTS` ids → `1..6` and the two `"fractions"`
+fallbacks → `"1"`.
+**Files:** `app/seed.py`, `app/features/tutor/service.py`,
+`app/features/catalog/tests/test_catalog.py`, `app/migrate_subjects.py` (new),
+`Makefile`; frontend `data/subjects.ts`, `state/chatHelpers.ts`, `api/chat.ts`.
+**Tests:** `make test` green; ruff clean; frontend `npm run check` green.
+Migration verified on Postgres.
+
 ## 2026-07-09 — Fix /tutor/ask 500 (kind width) + restore frontend read routes after merge
 
 **Author:** AI (Claude)

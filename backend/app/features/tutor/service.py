@@ -92,7 +92,7 @@ async def ask_question(
         session = TutorSession(
             id=session_id,
             student_id=student.id,
-            subject_id=subject_id or "fractions",
+            subject_id=subject_id or "1",
             concept=question,
             title=question[:255],
             status="active",
