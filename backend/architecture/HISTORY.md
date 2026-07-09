@@ -12,6 +12,33 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-07-10 — Live per-topic mastery: `student_concept_state` updates from chat
+
+**Author:** AI (Claude)
+**Summary:** Closed the live-tutoring gap so the student "By topic" charts (and the
+teacher roster) reflect real sessions, not just the seed. Previously the live graph
+persisted only the **global** `student_profile` + `evidence_events`;
+`student_concept_state` was never written outside `seed.py`, so per-topic views were
+static for real users. Now: (1) each session is mapped to a catalog concept via a
+deterministic resolver `repository.resolve_concept_id` (the subject's concepts scored
+by stem-overlap with the question — `_stem_match` handles add/adding, compare/comparing
+— with the entry-level concept as fallback); the id rides the graph state as
+`concept_id` (persisted in `tutor_sessions.state`, backfilled for legacy sessions in
+the service). (2) The **Evaluator** upserts the concept row on every answer via
+`repository.apply_concept_evaluation` (EMA mastery/confidence, attempt count, streak,
+understanding band, spaced-repetition `next_review`), mirroring `apply_evaluation`.
+No new LLM call (deterministic + testable); can be upgraded to an LLM classifier later.
+**Files:** `graph/state.py` (`concept_id` channel), `repository.py`
+(`resolve_concept_id`, `_stem_match`, `apply_concept_evaluation`),
+`graph/nodes/evaluator.py` (upsert call), `service.py` (resolve on new + legacy
+sessions), `tests/test_tutor.py` (integration test).
+**Tests:** `make test` green (63); ruff clean. Resolver spot-checked (add→addLike,
+1/2 vs 1/3→cmpUnit, equivalent→equiv, partitioning→partition, gibberish→fallback).
+Integration test: a fresh student completing a session yields one topic row
+(attempts=1, mastery=0.44, understanding=partial, streak=1) via `/me/topics`.
+
+---
+
 ## 2026-07-10 — Schema sync for new `session_analytics` columns (fix `/me/analytics` 500)
 
 **Author:** AI (Claude)

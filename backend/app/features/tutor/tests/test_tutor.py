@@ -169,6 +169,39 @@ async def test_completing_a_session_writes_analytics(seeded_client, mock_llm):
     assert cell["count"] == 1
 
 
+async def test_live_session_updates_per_topic_state(seeded_client, mock_llm):
+    """A completed live session upserts per-concept state, so the By-topic charts move
+    from real tutoring — not just the seed."""
+    headers = await _auth_header(seeded_client)
+    # Freshly registered student: no per-topic state yet.
+    assert (await seeded_client.get("/me/topics", headers=headers)).json()["topics"] == []
+
+    first = (
+        await seeded_client.post(
+            "/tutor/ask",
+            json={"question": "How do I add 4/5 and 3/5?", "subject_id": "1"},
+            headers=headers,
+        )
+    ).json()
+    sid = first["session_id"]
+    for i in range(3):
+        await _ask(seeded_client, headers, f"my answer {i}", sid)
+    done = await _ask(seeded_client, headers, "the answer is 42", sid)
+    assert done["action"] == "completed"
+
+    topics = (await seeded_client.get("/me/topics", headers=headers)).json()["topics"]
+    assert len(topics) == 1
+    t = topics[0]
+    # Resolved to a real Fractions concept and recorded the correct attempt.
+    assert t["subject_id"] == "1"
+    assert t["concept_id"] in {"partition", "unit", "cmpUnit", "cmpAny", "equiv", "addLike"}
+    assert t["attempts"] == 1
+    assert t["mastery"] == 0.44  # EMA: 0.8*0.3 + 0.2*1 from a 0.3 prior, one correct
+    assert t["understanding"] == "partial"
+    assert t["streak"] == 1
+    assert t["next_review"] is not None
+
+
 async def test_unlimited_hints_no_escalation_on_repeated_wrong(client, mock_llm):
     # Hints are unlimited now: repeated wrong answers keep producing new hints and never
     # auto-escalate.

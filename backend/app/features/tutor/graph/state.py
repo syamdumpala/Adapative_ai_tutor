@@ -8,6 +8,7 @@ class TutorState(TypedDict, total=False):
     student_id: int
     session_id: str
     concept: str  # student's original question
+    concept_id: str | None  # catalog concept this session maps to (per-topic state)
     message: str  # the current student message (question or answer)
     is_answer: bool  # True when `message` is an answer to a HINT (drives the evaluator)
     incoming: str  # "new" | "diagnostic_answer" | "hint_answer"
@@ -48,6 +49,7 @@ def new_state(student_id: int, session_id: str, concept: str) -> TutorState:
         "student_id": student_id,
         "session_id": session_id,
         "concept": concept,
+        "concept_id": None,
         "message": concept,
         "is_answer": False,
         "incoming": "new",

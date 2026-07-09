@@ -20,7 +20,7 @@ import {
 import { shortDate, toPct } from "../format";
 
 const MI_COLOR = CHART.amber;
-const MI_NAME = "Misconfidence index";
+const MI_NAME = "Misconfidence";
 const AXIS = { tick: AXIS_TICK, tickLine: false, axisLine: false } as const;
 // Right axis always keeps 0 visible (neutral), padded around the data.
 const MI_DOMAIN: [(min: number) => number, (max: number) => number] = [

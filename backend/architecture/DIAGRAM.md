@@ -158,3 +158,12 @@ the signed-in student: one row per `concept` the student has engaged with, joini
 (yes/partial/no), `attempts`, `streak`, `last_seen`, `next_review`, plus the
 concept's `glyph`/`tone`/`difficulty_band` — plot-ready for **per-topic mastery
 ranking, mastery-vs-confidence, understanding mix, and effort-vs-mastery**.
+
+`student_concept_state` is now written **live**: when a session starts, the service
+maps it to a catalog concept (`repository.resolve_concept_id` — the subject's
+concepts scored by stem-overlap with the question, entry-level concept as fallback)
+and stashes `concept_id` in the graph state. Then the **Evaluator** upserts the
+concept's row on every answer (`repository.apply_concept_evaluation`: EMA
+mastery/confidence, attempt count, streak, understanding band, spaced-repetition
+`next_review`) — the same way it already updates the global `student_profile`. So
+the By-topic charts move from real tutoring, not just the seed.
