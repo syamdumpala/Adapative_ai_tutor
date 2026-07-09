@@ -17,10 +17,13 @@ from app.features.catalog.models import Subject
 from app.features.tutor.models import (
     ConversationHistory,
     Misconception,
+    SessionAnalytics,
     StudentConceptState,
     TutorSession,
 )
 from app.features.tutor.schemas import (
+    AnalyticsPoint,
+    AnalyticsResponse,
     MessageOut,
     MisconceptionRef,
     PerfInsight,
@@ -29,6 +32,7 @@ from app.features.tutor.schemas import (
     ProfileOut,
     SessionDetail,
     SessionSummary,
+    SubjectAnalytics,
     SubjectRef,
 )
 
@@ -324,3 +328,55 @@ async def get_performance(db: AsyncSession, student: Student) -> PerformanceOut:
         insight=insight,
         stats=stats,
     )
+
+
+# --- Learning analytics -------------------------------------------------------
+
+
+async def get_analytics(db: AsyncSession, student: Student) -> AnalyticsResponse:
+    """Plot-ready learning analytics for one student: the raw per-session snapshots
+    (subject, mastery, confidence, misconception category) plus per-subject means —
+    ready to chart subject vs mastery vs confidence."""
+    rows = (
+        (
+            await db.execute(
+                select(SessionAnalytics)
+                .where(SessionAnalytics.student_id == student.id)
+                .order_by(SessionAnalytics.created_at.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    names = await _subject_refs(db, {r.subject_id for r in rows})
+
+    points = [
+        AnalyticsPoint(
+            session_id=r.session_id,
+            subject_id=r.subject_id,
+            subject_name=(names[r.subject_id].name if r.subject_id in names else None),
+            mastery=round(r.mastery, 3),
+            confidence=round(r.confidence, 3),
+            misconception_category=r.misconception_category,
+            created_at=r.created_at.isoformat() if r.created_at else None,
+        )
+        for r in rows
+    ]
+
+    # Aggregate per subject (mean mastery & confidence across the subject's sessions).
+    grouped: dict[str | None, list[SessionAnalytics]] = {}
+    for r in rows:
+        grouped.setdefault(r.subject_id, []).append(r)
+    by_subject = [
+        SubjectAnalytics(
+            subject_id=sid,
+            subject_name=(names[sid].name if sid in names else None),
+            mastery=round(sum(r.mastery for r in group) / len(group), 3),
+            confidence=round(sum(r.confidence for r in group) / len(group), 3),
+            sessions=len(group),
+        )
+        for sid, group in grouped.items()
+    ]
+    by_subject.sort(key=lambda s: s.subject_name or s.subject_id or "")
+
+    return AnalyticsResponse(by_subject=by_subject, points=points)

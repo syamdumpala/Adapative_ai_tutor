@@ -147,3 +147,35 @@ class SessionIndexItem(BaseModel):
     subject: str | None = None
     status: str
     created_at: str | None = None
+
+
+# --- Learning analytics (subject vs mastery vs confidence) --------------------
+
+
+class AnalyticsPoint(BaseModel):
+    """One completed-session snapshot — a single data point for the charts."""
+
+    session_id: str
+    subject_id: str | None = None
+    subject_name: str | None = None
+    mastery: float
+    confidence: float
+    misconception_category: str | None = None
+    created_at: str | None = None
+
+
+class SubjectAnalytics(BaseModel):
+    """Per-subject aggregate (mean mastery & confidence across the subject's sessions)."""
+
+    subject_id: str | None = None
+    subject_name: str | None = None
+    mastery: float
+    confidence: float
+    sessions: int
+
+
+class AnalyticsResponse(BaseModel):
+    """Plot-ready analytics: per-subject aggregates plus the raw per-session points."""
+
+    by_subject: list[SubjectAnalytics]
+    points: list[AnalyticsPoint]

@@ -8,6 +8,7 @@ from app.features.auth.dependencies import get_current_student, get_current_user
 from app.features.auth.models import Student
 from app.features.tutor import reads
 from app.features.tutor.schemas import (
+    AnalyticsResponse,
     AskRequest,
     AskResponse,
     ConversationResponse,
@@ -40,6 +41,7 @@ async def ask(
     with the student's answer to continue the loop (evaluate → next hint / done /
     escalate).
     """
+
     if not llm_is_configured():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -143,3 +145,13 @@ async def my_performance(
 ):
     """The student performance record: accuracy, mastery, streak, misconception status."""
     return await reads.get_performance(db, current)
+
+
+@me_router.get("/analytics", response_model=AnalyticsResponse)
+async def my_analytics(
+    current: Student = Depends(get_current_student),
+    db: AsyncSession = Depends(get_db),
+):
+    """Learning analytics for charting subject vs mastery vs confidence: per-subject
+    means plus the raw per-completed-session snapshots."""
+    return await reads.get_analytics(db, current)
