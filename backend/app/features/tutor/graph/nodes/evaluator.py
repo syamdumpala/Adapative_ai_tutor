@@ -28,7 +28,10 @@ async def evaluator_node(state, config):
         EvaluationResult,
         prompts.SYSTEM,
         prompts.user(
-            state["concept"], (state.get("tutor_plan") or {}).get("plan"), state["message"]
+            state["subject"],
+            state["concept"],
+            (state.get("tutor_plan") or {}).get("plan"),
+            state["message"],
         ),
     )
     correct = bool(data.get("correct"))

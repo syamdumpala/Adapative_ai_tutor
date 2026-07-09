@@ -37,6 +37,9 @@ from app.core.config import settings
 
 _MAX_TOKENS = 2048
 _TIMEOUT = 60
+# Turn budget for the subscription (Claude Code) path. Tools are disabled, so this is
+# just headroom for a single answer; >1 avoids "Reached maximum number of turns (1)".
+_MAX_TURNS = 6
 
 
 class LLMConfigError(RuntimeError):
@@ -222,7 +225,11 @@ class ClaudeSubscriptionChatModel(BaseChatModel):
         options = ClaudeAgentOptions(
             system_prompt=system,
             model=self.agent_model,
-            max_turns=1,
+            # No tools are ever enabled (allowed_tools=[]), so a completion is still a
+            # single logical response — but a large/instruction-heavy prompt can make
+            # Claude Code take an extra turn to finish. max_turns=1 aborts that with
+            # "Reached maximum number of turns (1)"; a small budget gives it headroom.
+            max_turns=_MAX_TURNS,
             allowed_tools=[],
             setting_sources=[],
         )

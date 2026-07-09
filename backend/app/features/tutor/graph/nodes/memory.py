@@ -13,5 +13,5 @@ async def memory_node(state, config):
     mastery = profile.get("mastery")
     return {
         "action": "completed",
-        "output": f"{feedback}\n\nGreat — you've got it! Mastery is now {mastery}.",
+        "output": f"{feedback} . Great — you've got it! Mastery is now {mastery}.",
     }

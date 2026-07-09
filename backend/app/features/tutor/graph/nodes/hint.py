@@ -11,10 +11,12 @@ from app.features.tutor.graph.schemas import HintResult
 async def hint_node(state, config):
     level = state.get("hint_level", 1)
     plan = state.get("tutor_plan") or {}
+    hint = state.get("hint") or ""
     result = await llm.run_agent(
         "hint",
         HintResult,
         prompts.SYSTEM,
-        prompts.user(state["concept"], level, plan.get("plan")),
+        prompts.user(state.get("subject"), state["concept"], plan, level, hint),
+        # state["concept"], level, plan.get("plan")
     )
     return {"hint": result["hint"]}

@@ -59,4 +59,5 @@ class EvaluationResult(BaseModel):
     """Evaluator — correctness judgement and feedback."""
 
     correct: bool = False
+    confidence: float = 0.0
     feedback: str = ""
