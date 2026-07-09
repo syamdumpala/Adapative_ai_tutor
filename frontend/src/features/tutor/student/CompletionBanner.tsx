@@ -2,14 +2,10 @@ import { Button } from "@/components";
 
 interface CompletionBannerProps {
   onNewChat: () => void;
-  onToTeacher: () => void;
 }
 
-/** Replaces the composer once a guided conversation is completed. */
-export function CompletionBanner({
-  onNewChat,
-  onToTeacher,
-}: CompletionBannerProps) {
+/** Replaces the composer once a conversation is completed. */
+export function CompletionBanner({ onNewChat }: CompletionBannerProps) {
   return (
     <div className="flex animate-pop flex-col gap-[13px] rounded-lg border border-green-s bg-green-s2 px-4 py-[15px]">
       <div className="flex items-center gap-[11px]">
@@ -28,9 +24,6 @@ export function CompletionBanner({
       <div className="flex flex-wrap gap-[9px]">
         <Button variant="primary" onClick={onNewChat}>
           Start a new chat
-        </Button>
-        <Button variant="secondary" onClick={onToTeacher}>
-          See teacher view
         </Button>
       </div>
     </div>

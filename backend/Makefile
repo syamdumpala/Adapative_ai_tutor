@@ -1,23 +1,39 @@
-.PHONY: install install-dev run test lint format hooks
+# All targets run through the project virtualenv so they never fall back to a
+# system Python that is missing dependencies. Override with `make VENV=/path run`.
+VENV ?= .venv
+PY := $(VENV)/bin/python
+
+.PHONY: venv install install-dev run migrate seed test lint format hooks
+
+venv:
+	python3 -m venv $(VENV)
 
 install:
-	pip install -r requirements.txt
+	$(PY) -m pip install -r requirements.txt
 
 install-dev:
-	pip install -r requirements-dev.txt
+	$(PY) -m pip install -r requirements-dev.txt
 
 run:
-	uvicorn app.main:app --reload
+	$(PY) -m uvicorn app.main:app --reload
+
+# Additively sync the schema (create tables + add new columns). Idempotent.
+migrate:
+	$(PY) -m app.dbsync
+
+# Populate the configured database with the demo dataset (idempotent).
+seed:
+	$(PY) -m app.seed
 
 test:
-	pytest
+	$(PY) -m pytest
 
 lint:
-	ruff check .
+	$(PY) -m ruff check .
 
 format:
-	ruff format .
+	$(PY) -m ruff format .
 
 # Install the git pre-commit hook (config lives at the repo root).
 hooks:
-	cd .. && pre-commit install
+	cd .. && $(PY) -m pre_commit install

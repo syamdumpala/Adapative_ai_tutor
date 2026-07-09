@@ -4,6 +4,55 @@ Append-only changelog. Newest first.
 
 ---
 
+## 2026-07-09 — Remove demo scaffolding; make the chat fully live
+
+Stripped the prototype affordances so the app behaves like a real product driven
+entirely by the backend.
+
+- **No role switch** — the student/teacher toggle is gone. Role is fixed by the
+  signed-in account (`/auth/me`); the topbar is now brand-only.
+- **No demo controls** — removed the "Restart" and "Simulate day" buttons.
+- **Live chat, no script** — replaced the scripted dialogue engine with a real
+  loop over `POST /tutor/ask`: `openSubject` starts a fresh chat, `sendMessage`
+  sends the turn and appends the tutor's actual reply, the "Hint N of 3" badge
+  reflects the graph's `hint_level`, and completed chats lock. The "Your chats"
+  rail and transcripts come from `/tutor/sessions` (+ `/{id}/messages`); errors
+  surface as an inline banner.
+- **Deleted dummy data/components** — `data/{dialogue,dialogueGeneric,quizzes,seeds}.ts`,
+  `hooks/chatActions.ts`, `api/history.ts`, `buildStudents`, and the scripted
+  message cards (`QuizCard`, `DiagnosisCard`, `RevisionPlan`, `WorkedExample`,
+  `VisualHint`). Trimmed `types.ts` to the live shapes.
+- Verified: `npm run check` + `npm run build` green; end-to-end against the
+  backend — login, subjects, chats rail, transcript load, and multi-turn
+  `/tutor/ask` (new sessions appear live in the rail).
+
+## 2026-07-09 — Wire the app to the backend via a BFF (auth + live data)
+
+Connected the frontend to the FastAPI backend using the **Backend-for-Frontend**
+pattern from `docs/security/SECURITY.md` — the browser only ever calls same-origin
+`/api/*` route handlers, which attach the JWT from an **httpOnly cookie** and
+forward to the backend, so the token never reaches client code (CSP `connect-src
+'self'` unchanged).
+
+- **BFF route handlers** (`src/app/api/`): `auth/login`, `auth/register`,
+  `auth/logout`, `auth/me` (set/clear the `mira_session` httpOnly cookie), and a
+  catch-all authenticated proxy `backend/[...path]` for all read/query endpoints.
+- **Server client** `src/server/backend.ts` (cookie helpers + `backendFetch`);
+  **browser client** `src/lib/api.ts` (`apiGet/apiPost/apiPatch`, `Page<T>`, `qs`).
+- **Auth** (`src/features/auth/api.ts`): `signIn`/`signUp`/`signOut` now hit the BFF
+  (removed the `AuthNotConnectedError` stub). `/` is now a **session-guarded** server
+  component (redirects to `/login`, and takes the role + display name from `/auth/me`).
+- **Student data**: subjects grid ← `GET /subjects`; profile/performance modals ←
+  `/me/profile` + `/me/performance`; the "Your chats" rail + transcripts ← the
+  conversation-history API (`/tutor/sessions` + `/{id}/messages`) via a non-disruptive
+  `hydrate` reducer action.
+- **Teacher dashboard**: roster + per-topic engagement assembled from the split
+  teacher endpoints (`useTeacherStudents`); simulate-day and logout call the real APIs.
+- **Env**: `API_BASE_URL` (server-only) selects the backend; falls back to
+  `NEXT_PUBLIC_API_BASE_URL` then `http://localhost:8000`.
+- Verified: `npm run check` + `npm run build` green; full login→cookie→proxy flow
+  exercised end-to-end against the running backend (role guard 403, logout redirect).
+
 ## 2026-07-09 — Fix `next dev` "Manifest file is empty" (pin Turbopack root)
 
 `npm run dev` 500'd with `Error: Manifest file is empty`. Cause: Next inferred

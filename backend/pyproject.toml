@@ -16,3 +16,8 @@ ignore = ["B008"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = ["E501"]
+# Agent node/prompt files hold long natural-language LLM prompts; don't enforce line length.
+"**/graph/nodes/*.py" = ["E501"]
+"**/graph/prompts/*.py" = ["E501"]
+# The seed file holds long natural-language demo content (lesson blurbs, chat lines).
+"**/seed.py" = ["E501"]

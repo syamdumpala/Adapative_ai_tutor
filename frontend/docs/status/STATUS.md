@@ -39,17 +39,28 @@ See [`../modules/MODULES.md`](../modules/MODULES.md) for the module registry and
 [`../../src/components/README.md`](../../src/components/README.md) for the
 component catalog.
 
+## Backend integration — ✅ wired via BFF
+
+| Surface | Status | Source |
+| ------- | ------ | ------ |
+| Auth (login / register / logout / session) | ✅ | `/api/auth/*` → httpOnly cookie; `/` is session-guarded and resolves role from `/auth/me` |
+| Subjects grid | ✅ | `GET /subjects` (per-student progress) |
+| Profile / performance modals | ✅ | `/me/profile` · `/me/performance` |
+| "Your chats" rail + transcripts | ✅ | conversation-history API (`/tutor/sessions` + `/{id}/messages`) |
+| Teacher dashboard (roster / student / topic) | ✅ | `/teacher/*` assembled in `useTeacherStudents` |
+| Simulate-day · logout | ✅ | `/teacher/simulate-day` · `/api/auth/logout` |
+
+The chat is now **fully live** (no scripted flow): `POST /tutor/ask` drives every
+turn, and there is **no role switch / restart / simulate-day** — role comes from
+the signed-in account.
+
 ## In progress / next up
 
-- Backend API integration — the tutor is currently a **self-contained demo**
-  (seeded data + scripted dialogue in `src/features/tutor/data/`). Real chat,
-  diagnosis and analytics should move behind a server-side route/proxy so
-  backend secrets never reach the client.
-- **Wire the auth API** — the sign-in / sign-up workflow, validation and states
-  are complete; only the network calls in `src/features/auth/api.ts` remain
-  (fill in the `TODO(api)` seams against a server-side route handler). Then add
-  session persistence so the tutor resolves role from the session rather than
-  the `?role=` query shim.
+- **Server-side search everywhere** — list endpoints support `q`/`sort`/filters;
+  the teacher drill-down search boxes currently filter the fetched set
+  client-side (fine for a class; switch to server `q` for large rosters).
+- **Message pagination** — `fetchSessionMessages` loads the first 100 messages
+  (the API page cap); add paging if conversations grow beyond that.
 
 ## Known gaps / TODO
 

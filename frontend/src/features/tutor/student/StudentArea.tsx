@@ -8,11 +8,9 @@ interface StudentAreaProps {
   name: string;
   initials: string;
   bp: Breakpoint;
-  celebrate: boolean;
   onProfile: () => void;
   onPerformance: () => void;
   onLogout: () => void;
-  onToTeacher: () => void;
 }
 
 /** Student side of the app; home when no chat is open, otherwise the chat. */
@@ -21,11 +19,9 @@ export function StudentArea({
   name,
   initials,
   bp,
-  celebrate,
   onProfile,
   onPerformance,
   onLogout,
-  onToTeacher,
 }: StudentAreaProps) {
   if (chat.state.activeChatId === null) {
     return (
@@ -40,7 +36,5 @@ export function StudentArea({
       />
     );
   }
-  return (
-    <ChatView chat={chat} celebrate={celebrate} onToTeacher={onToTeacher} />
-  );
+  return <ChatView chat={chat} />;
 }

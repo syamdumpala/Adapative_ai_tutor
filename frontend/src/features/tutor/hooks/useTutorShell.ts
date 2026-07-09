@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useResponsive, type Breakpoint } from "@/hooks/useResponsive";
 import { useToast, type ToastController } from "@/hooks/useToast";
-import { buildStudents, type TeacherStudent } from "../data/teacher";
+import type { TeacherStudent } from "../data/teacher";
 import { initialsOf } from "../data/student";
+import { signOut } from "@/features/auth/api";
 import type { ModalKind, Role } from "../types";
 import { type MiraChat, useMiraChat } from "./useMiraChat";
 import { type TeacherNav, useTeacherNav } from "./useTeacherNav";
+import { useTeacherStudents } from "./useTeacherStudents";
 
 export interface TutorShell {
   bp: Breakpoint;
@@ -19,35 +21,26 @@ export interface TutorShell {
   modal: ModalKind;
   students: TeacherStudent[];
   initials: string;
-  setRole: (role: Role) => void;
   onLogoClick: () => void;
-  onSimulateDay: () => void;
-  onRestart: () => void;
   openModal: (modal: ModalKind) => void;
   closeModal: () => void;
-  onStudentLogout: () => void;
-  onTeacherLogout: () => void;
-  onToTeacher: () => void;
+  onLogout: () => void;
 }
 
-/** Owns app-shell state (role, modal, toast) and the cross-cutting handlers. */
+/** Owns app-shell state (modal, toast) and the cross-cutting handlers. The role
+ * is fixed by the signed-in account — there is no in-app role switch. */
 export function useTutorShell(
   studentName: string,
   initialRole: Role,
 ): TutorShell {
   const bp = useResponsive();
   const toast = useToast();
-  const chat = useMiraChat(studentName);
+  const chat = useMiraChat();
   const teacherNav = useTeacherNav();
   const router = useRouter();
-  const [role, setRoleState] = useState<Role>(initialRole);
+  const role = initialRole;
   const [modal, setModal] = useState<ModalKind>(null);
-  const students = useMemo(() => buildStudents(studentName), [studentName]);
-
-  const goTeacher = () => {
-    chat.commit();
-    setRoleState("teacher");
-  };
+  const { students } = useTeacherStudents(role === "teacher");
 
   return {
     bp,
@@ -58,23 +51,9 @@ export function useTutorShell(
     modal,
     students,
     initials: initialsOf(studentName),
-    setRole: (next) =>
-      next === "teacher" ? goTeacher() : setRoleState("student"),
     onLogoClick: () => role === "student" && chat.goHome(),
-    onSimulateDay: () =>
-      toast.show("+1 day simulated — revision dates advanced"),
-    onRestart: () => {
-      chat.restart();
-      setModal(null);
-      setRoleState("student");
-    },
     openModal: setModal,
     closeModal: () => setModal(null),
-    onStudentLogout: () => {
-      toast.show("Signed out — this is a demo, your progress is kept");
-      chat.goHome();
-    },
-    onTeacherLogout: () => router.push("/login"),
-    onToTeacher: goTeacher,
+    onLogout: () => void signOut().finally(() => router.push("/login")),
   };
 }

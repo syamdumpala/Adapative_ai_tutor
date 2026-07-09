@@ -1,5 +1,7 @@
 import { Avatar, Modal, StatCard } from "@/components";
 import { fullName } from "../data/student";
+import type { PerformanceDTO, ProfileDTO } from "../api/student";
+import { usePerformance, useProfile } from "../hooks/useMeData";
 import type { ModalKind } from "../types";
 
 interface StudentModalProps {
@@ -8,17 +10,6 @@ interface StudentModalProps {
   name: string;
   initials: string;
 }
-
-const PERF_STATS = [
-  { value: "84%", label: "Recent accuracy", valueClassName: "text-green" },
-  { value: "12", label: "Concepts mastered", valueClassName: "text-ink" },
-  { value: "6", label: "Day streak", valueClassName: "text-violet" },
-  {
-    value: "1",
-    label: "Misconception resolving",
-    valueClassName: "text-amber",
-  },
-];
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -29,55 +20,103 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ProfileBody({ name, initials }: { name: string; initials: string }) {
+interface ProfileView {
+  displayName: string;
+  roleLine: string;
+  initials: string;
+  email: string;
+  since: string;
+  subjects: string;
+}
+
+function profileView(
+  profile: ProfileDTO | null,
+  name: string,
+  initials: string,
+): ProfileView {
+  if (!profile) {
+    return {
+      displayName: fullName(name),
+      roleLine: "Student",
+      initials,
+      email: "—",
+      since: "—",
+      subjects: "0",
+    };
+  }
+  const grade = profile.grade ? ` · ${profile.grade}` : "";
+  return {
+    displayName: profile.full_name,
+    roleLine: `${profile.role_label}${grade}`,
+    initials: profile.initials,
+    email: profile.email,
+    since: profile.member_since,
+    subjects: String(profile.subjects_available),
+  };
+}
+
+function ProfileBody({
+  profile,
+  name,
+  initials,
+}: {
+  profile: ProfileDTO | null;
+  name: string;
+  initials: string;
+}) {
+  const v = profileView(profile, name, initials);
   return (
     <div className="flex flex-col items-center gap-[14px] px-[22px] py-6 text-center">
-      <Avatar initials={initials} gradient="violet" size={74} display />
+      <Avatar initials={v.initials} gradient="violet" size={74} display />
       <div>
         <div className="font-display text-[20px] font-extrabold">
-          {fullName(name)}
+          {v.displayName}
         </div>
-        <div className="mt-[2px] text-[13px] text-ink2">Student · Grade 5</div>
+        <div className="mt-[2px] text-[13px] text-ink2">{v.roleLine}</div>
       </div>
       <div className="mt-1 flex w-full flex-col gap-[6px]">
-        <DetailRow label="Email" value="maya.chen@school.edu" />
-        <DetailRow label="Member since" value="Sep 2025" />
-        <DetailRow label="Subjects available" value="6" />
+        <DetailRow label="Email" value={v.email} />
+        <DetailRow label="Member since" value={v.since} />
+        <DetailRow label="Subjects available" value={v.subjects} />
       </div>
     </div>
   );
 }
 
-function PerformanceBody() {
+function PerformanceBody({ perf }: { perf: PerformanceDTO | null }) {
+  const stats = perf?.stats ?? [];
   return (
     <div className="px-[18px] py-5">
       <div className="grid grid-cols-2 gap-[10px]">
-        {PERF_STATS.map((stat) => (
+        {stats.map((stat) => (
           <StatCard
-            key={stat.label}
+            key={stat.key}
             value={stat.value}
             label={stat.label}
             size="md"
             background="paper2"
-            valueClassName={stat.valueClassName}
+            valueClassName={stat.value_class}
           />
         ))}
       </div>
-      <div className="mt-[14px] rounded-sm border border-green-s bg-green-s2 px-[14px] py-3 text-[12.5px] leading-[1.5] text-green-d">
-        Whole-number bias is <b>resolving</b> — keep practicing and it will be
-        fully cleared soon.
-      </div>
+      {perf?.insight.text && (
+        <div className="mt-[14px] rounded-sm border border-green-s bg-green-s2 px-[14px] py-3 text-[12.5px] leading-[1.5] text-green-d">
+          {perf.insight.text}
+        </div>
+      )}
     </div>
   );
 }
 
-/** Profile / performance dialog for the student account menu. */
+/** Profile / performance dialog for the student account menu (live from `/me/*`). */
 export function StudentModal({
   modal,
   onClose,
   name,
   initials,
 }: StudentModalProps) {
+  const profile = useProfile(modal === "profile");
+  const perf = usePerformance(modal === "performance");
   return (
     <Modal
       open={modal !== null}
@@ -85,9 +124,9 @@ export function StudentModal({
       title={modal === "performance" ? "Your performance" : "Your profile"}
     >
       {modal === "performance" ? (
-        <PerformanceBody />
+        <PerformanceBody perf={perf} />
       ) : (
-        <ProfileBody name={name} initials={initials} />
+        <ProfileBody profile={profile} name={name} initials={initials} />
       )}
     </Modal>
   );

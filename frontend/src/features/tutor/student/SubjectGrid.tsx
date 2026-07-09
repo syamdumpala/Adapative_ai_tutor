@@ -1,4 +1,4 @@
-import { SUBJECTS } from "../data/subjects";
+import { useSubjects } from "../hooks/useSubjects";
 import { ProfileMenu } from "./ProfileMenu";
 import { SubjectCard } from "./SubjectCard";
 
@@ -20,6 +20,7 @@ export function SubjectGrid({
   onPerformance,
   onLogout,
 }: SubjectGridProps) {
+  const subjects = useSubjects();
   return (
     <>
       <div className="mb-[clamp(18px,2.6vw,30px)] flex animate-fade-up flex-wrap items-start justify-between gap-4">
@@ -44,7 +45,7 @@ export function SubjectGrid({
         />
       </div>
       <div className="grid gap-[clamp(12px,1.6vw,18px)] [grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))]">
-        {SUBJECTS.map((subject) => (
+        {subjects.map((subject) => (
           <SubjectCard
             key={subject.id}
             subject={subject}

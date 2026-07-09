@@ -13,18 +13,14 @@ import type { Role } from "./types";
 interface TutorAppProps {
   studentName?: string;
   initialRole?: Role;
-  /** Celebrate correct answers with the burst animation. */
-  celebrate?: boolean;
 }
 
 function AppBody({
   shell,
   studentName,
-  celebrate,
 }: {
   shell: TutorShell;
   studentName: string;
-  celebrate: boolean;
 }) {
   if (shell.role !== "student") {
     return (
@@ -32,7 +28,7 @@ function AppBody({
         nav={shell.teacherNav}
         students={shell.students}
         bp={shell.bp}
-        onLogout={shell.onTeacherLogout}
+        onLogout={shell.onLogout}
       />
     );
   }
@@ -42,11 +38,9 @@ function AppBody({
       name={studentName}
       initials={shell.initials}
       bp={shell.bp}
-      celebrate={celebrate}
       onProfile={() => shell.openModal("profile")}
       onPerformance={() => shell.openModal("performance")}
-      onLogout={shell.onStudentLogout}
-      onToTeacher={shell.onToTeacher}
+      onLogout={shell.onLogout}
     />
   );
 }
@@ -55,7 +49,6 @@ function AppBody({
 export function TutorApp({
   studentName = DEFAULT_STUDENT_NAME,
   initialRole = "student",
-  celebrate = true,
 }: TutorAppProps) {
   const shell = useTutorShell(studentName, initialRole);
   const isStudent = shell.role === "student";
@@ -65,15 +58,7 @@ export function TutorApp({
       className="flex h-screen flex-col overflow-hidden"
       style={{ background: MIRA_BACKDROP }}
     >
-      <Topbar
-        role={shell.role}
-        onRole={shell.setRole}
-        onLogoClick={shell.onLogoClick}
-        isTeacher={!isStudent}
-        onSimulateDay={shell.onSimulateDay}
-        onRestart={shell.onRestart}
-        showLabels={shell.bp !== "mobile"}
-      />
+      <Topbar onLogoClick={shell.onLogoClick} />
       <Toast message={shell.toast.message} />
       {isStudent && (
         <StudentModal
@@ -83,7 +68,7 @@ export function TutorApp({
           initials={shell.initials}
         />
       )}
-      <AppBody shell={shell} studentName={studentName} celebrate={celebrate} />
+      <AppBody shell={shell} studentName={studentName} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { ChatMessage, ChatStatus, ConfidenceValue } from "../../types";
+import type { ChatMessage, ChatStatus } from "../../types";
 import { MessageRow } from "./MessageRow";
 import { TypingIndicator } from "./TypingIndicator";
 
@@ -9,20 +9,10 @@ interface MessageListProps {
   messages: ChatMessage[];
   typing: boolean;
   status: ChatStatus;
-  celebrate: boolean;
-  onRate: (msgId: number, value: ConfidenceValue) => void;
-  onAnswer: (msgId: number, idx: number) => void;
 }
 
 /** Scrollable transcript; auto-sticks to the bottom as messages arrive. */
-export function MessageList({
-  messages,
-  typing,
-  status,
-  celebrate,
-  onRate,
-  onAnswer,
-}: MessageListProps) {
+export function MessageList({ messages, typing, status }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,13 +35,7 @@ export function MessageList({
           </span>
         </div>
         {messages.map((message) => (
-          <MessageRow
-            key={message.id}
-            message={message}
-            celebrate={celebrate}
-            onRate={onRate}
-            onAnswer={onAnswer}
-          />
+          <MessageRow key={message.id} message={message} />
         ))}
         {typing && <TypingIndicator />}
       </div>

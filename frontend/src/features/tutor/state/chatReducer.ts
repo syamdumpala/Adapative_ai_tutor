@@ -1,41 +1,39 @@
-import type { ConfidenceValue, Control, MessageSpec } from "../types";
-import type { SeededHistory } from "../data/seeds";
+import type { ChatMessage, ChatStatus } from "../types";
 import {
   type ChatEngineState,
-  appendMaya,
-  commit,
-  finish,
-  initialChatState,
-  materialize,
-  patchQuiz,
+  type ChatSummary,
+  NEW_CHAT,
 } from "./chatHelpers";
 
 export type { ChatEngineState } from "./chatHelpers";
-export { initialChatState } from "./chatHelpers";
 
 export type ChatAction =
-  | { type: "reset"; seeds: SeededHistory }
+  | { type: "setList"; chats: Record<string, ChatSummary>; order: string[] }
+  | { type: "openDraft"; subjectId: string }
   | {
-      type: "openSubject";
+      type: "openExisting";
+      id: string;
       subjectId: string;
-      chatId: string;
-      greeting: MessageSpec[];
-      controls: Control[];
+      title: string;
+      status: ChatStatus;
+      hintRung: number;
+      messages: ChatMessage[];
     }
-  | { type: "openChat"; id: string }
+  | { type: "setMessages"; id: string; messages: ChatMessage[] }
   | { type: "goHome" }
-  | { type: "commit" }
-  | { type: "appendMaya"; text: string }
-  | { type: "setTyping"; typing: boolean }
-  | { type: "setHint"; rung: number }
-  | { type: "incLeak" }
-  | { type: "appendTutor"; specs: MessageSpec[] }
-  | { type: "setControls"; controls: Control[] }
-  | { type: "rateConf"; msgId: number; value: ConfidenceValue }
-  | { type: "needConf"; msgId: number }
-  | { type: "answerQuiz"; msgId: number; idx: number; correct: boolean }
-  | { type: "retryQuiz"; msgId: number }
-  | { type: "finish"; specs: MessageSpec[] };
+  | { type: "sendUser"; text: string }
+  | {
+      type: "tutorReply";
+      sessionId: string;
+      text: string;
+      status: ChatStatus;
+      hintRung: number;
+    }
+  | { type: "fail"; message: string };
+
+function userMessage(state: ChatEngineState, text: string): ChatMessage {
+  return { id: state.tempId, from: "maya", kind: "text", text };
+}
 
 type Handlers = {
   [K in ChatAction["type"]]: (
@@ -45,97 +43,89 @@ type Handlers = {
 };
 
 const HANDLERS: Handlers = {
-  reset: (_state, action) => initialChatState(action.seeds),
-  openSubject: (state, action) => ({
+  setList: (state, action) => ({
     ...state,
-    chats: commit(state),
-    activeChatId: action.chatId,
+    chats: action.chats,
+    order: action.order,
+  }),
+  openDraft: (state, action) => ({
+    ...state,
+    activeChatId: NEW_CHAT,
+    sessionId: null,
     subjectId: action.subjectId,
+    title: "",
     status: "draft",
     locked: false,
-    title: "",
-    messages: materialize(action.greeting, "tutor", state.nextId),
-    controls: action.controls,
+    messages: [],
     typing: false,
     hintRung: 0,
-    leakChecks: 0,
-    nextId: state.nextId + action.greeting.length,
+    error: null,
   }),
-  openChat: (state, action) => {
-    const chats = commit(state);
-    const chat = chats[action.id];
-    if (!chat) return { ...state, chats };
-    const locked = chat.status === "completed";
-    return {
-      ...state,
-      chats,
-      activeChatId: action.id,
-      subjectId: chat.subjectId,
-      status: chat.status,
-      locked,
-      title: chat.title,
-      messages: chat.messages,
-      controls: locked ? [] : chat.controls,
-      typing: false,
-      hintRung: chat.hintRung,
-      leakChecks: chat.leakChecks,
-    };
-  },
+  openExisting: (state, action) => ({
+    ...state,
+    activeChatId: action.id,
+    sessionId: action.id,
+    subjectId: action.subjectId,
+    title: action.title,
+    status: action.status,
+    locked: action.status === "completed",
+    messages: action.messages,
+    typing: false,
+    hintRung: action.hintRung,
+    error: null,
+  }),
+  setMessages: (state, action) =>
+    state.activeChatId === action.id
+      ? { ...state, messages: action.messages }
+      : state,
   goHome: (state) => ({
     ...state,
-    chats: commit(state),
     activeChatId: null,
     typing: false,
+    error: null,
   }),
-  commit: (state) => ({ ...state, chats: commit(state) }),
-  appendMaya: (state, action) => appendMaya(state, action.text),
-  setTyping: (state, action) => ({ ...state, typing: action.typing }),
-  setHint: (state, action) => ({ ...state, hintRung: action.rung }),
-  incLeak: (state) => ({ ...state, leakChecks: state.leakChecks + 1 }),
-  appendTutor: (state, action) => ({
-    ...state,
-    typing: false,
-    messages: [
-      ...state.messages,
-      ...materialize(action.specs, "tutor", state.nextId),
-    ],
-    nextId: state.nextId + action.specs.length,
-  }),
-  setControls: (state, action) => ({ ...state, controls: action.controls }),
-  rateConf: (state, action) => ({
-    ...state,
-    messages: patchQuiz(state, action.msgId, (m) => ({
-      ...m,
-      quiz: { ...m.quiz!, confidence: action.value, needConf: false },
-    })),
-  }),
-  needConf: (state, action) => ({
-    ...state,
-    messages: patchQuiz(state, action.msgId, (m) => ({
-      ...m,
-      quiz: { ...m.quiz!, needConf: true },
-    })),
-  }),
-  answerQuiz: (state, action) => ({
-    ...state,
-    messages: patchQuiz(state, action.msgId, (m) => ({
-      ...m,
-      quiz: {
-        ...m.quiz!,
-        selected: action.idx,
-        answered: true,
-        correct: action.correct,
-      },
-    })),
-  }),
-  retryQuiz: (state, action) => ({
-    ...state,
-    messages: patchQuiz(state, action.msgId, (m) => ({
-      ...m,
-      quiz: { ...m.quiz!, answered: false, selected: null },
-    })),
-  }),
-  finish: (state, action) => finish(state, action.specs),
+  sendUser: (state, action) => {
+    const draft = state.status === "draft";
+    return {
+      ...state,
+      messages: [...state.messages, userMessage(state, action.text)],
+      typing: true,
+      error: null,
+      tempId: state.tempId - 1,
+      status: draft ? "pending" : state.status,
+      title: draft ? action.text.slice(0, 80) : state.title,
+    };
+  },
+  tutorReply: (state, action) => {
+    const id = action.sessionId;
+    const summary: ChatSummary = {
+      id,
+      subjectId: state.subjectId,
+      title: state.title || "New chat",
+      status: action.status,
+      hintRung: action.hintRung,
+    };
+    const reply: ChatMessage = {
+      id: state.tempId,
+      from: "tutor",
+      kind: "text",
+      text: action.text,
+    };
+    return {
+      ...state,
+      sessionId: id,
+      activeChatId: id,
+      messages: [...state.messages, reply],
+      typing: false,
+      hintRung: action.hintRung,
+      status: action.status,
+      locked: action.status === "completed",
+      tempId: state.tempId - 1,
+      chats: { ...state.chats, [id]: summary },
+      order: [id, ...state.order.filter((x) => x !== id)],
+    };
+  },
+  fail: (state, action) => ({ ...state, typing: false, error: action.message }),
 };
 
 export function chatReducer(

@@ -1,5 +1,4 @@
 import type { Health, Understanding } from "@/lib/tones";
-import { fullName, initialsOf } from "./student";
 
 export interface TeacherTopic {
   id: string;
@@ -87,84 +86,6 @@ export const TEACHER_TOPICS: TeacherTopic[] = [
 
 export function topicById(id: string | null): TeacherTopic {
   return TEACHER_TOPICS.find((topic) => topic.id === id) ?? TEACHER_TOPICS[0]!;
-}
-
-// The demo student ("Maya") — name/initials are supplied at build time.
-const MAYA: Omit<TeacherStudent, "name" | "initials"> = {
-  id: "maya",
-  tone: "good",
-  status: "Improving",
-  improvement: "+38%",
-  eng: {
-    partition: { asked: 3, u: "yes", m: 0.7 },
-    cmpUnit: { asked: 2, u: "yes", m: 0.6 },
-    cmpAny: { asked: 2, u: "yes", m: 0.6 },
-    equiv: { asked: 1, u: "partial", m: 0.3 },
-  },
-};
-
-const OTHER_STUDENTS: TeacherStudent[] = [
-  {
-    id: "priya",
-    name: "Priya Nair",
-    initials: "PN",
-    tone: "good",
-    status: "Steady",
-    improvement: "+24%",
-    eng: {
-      partition: { asked: 1, u: "yes", m: 0.82 },
-      cmpAny: { asked: 2, u: "yes", m: 0.71 },
-      equiv: { asked: 2, u: "yes", m: 0.58 },
-    },
-  },
-  {
-    id: "leo",
-    name: "Leo Meyer",
-    initials: "LM",
-    tone: "good",
-    status: "Steady",
-    improvement: "+18%",
-    eng: {
-      partition: { asked: 1, u: "yes", m: 0.74 },
-      unit: { asked: 1, u: "partial", m: 0.55 },
-      cmpAny: { asked: 1, u: "yes", m: 0.66 },
-    },
-  },
-  {
-    id: "sam",
-    name: "Sam Ortiz",
-    initials: "SO",
-    tone: "warn",
-    status: "Watch",
-    improvement: "+12%",
-    eng: {
-      partition: { asked: 2, u: "partial", m: 0.52 },
-      cmpAny: { asked: 1, u: "no", m: 0.4 },
-      equiv: { asked: 1, u: "no", m: 0.28 },
-    },
-  },
-  {
-    id: "rohan",
-    name: "Rohan Das",
-    initials: "RD",
-    tone: "bad",
-    status: "At risk",
-    improvement: "+6%",
-    eng: {
-      partition: { asked: 1, u: "partial", m: 0.3 },
-      cmpAny: { asked: 4, u: "no", m: 0.15 },
-    },
-  },
-];
-
-/** Build the class roster; the demo student's row uses the configured name. */
-export function buildStudents(studentName: string): TeacherStudent[] {
-  const maya = {
-    ...MAYA,
-    name: fullName(studentName),
-    initials: initialsOf(studentName),
-  };
-  return [maya, ...OTHER_STUDENTS];
 }
 
 export function studentById(

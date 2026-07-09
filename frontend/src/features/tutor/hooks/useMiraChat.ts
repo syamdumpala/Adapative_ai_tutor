@@ -1,70 +1,111 @@
 "use client";
 
-import { useEffect, useReducer, useRef } from "react";
-import { buildSeeds } from "../data/seeds";
-import { subjectById } from "../data/subjects";
 import {
-  type ChatEngineState,
-  chatReducer,
-  initialChatState,
-} from "../state/chatReducer";
-import type { ConfidenceValue } from "../types";
+  type Dispatch,
+  type MutableRefObject,
+  useEffect,
+  useReducer,
+  useRef,
+} from "react";
 import {
-  type Ctx,
-  clearTimer,
-  handleAnswer,
-  openSubjectAction,
-  runControl,
-} from "./chatActions";
+  askTutor,
+  fetchChatList,
+  fetchChatMessages,
+  toChatStatus,
+} from "../api/chat";
+import { type ChatEngineState, initialChatState } from "../state/chatHelpers";
+import { type ChatAction, chatReducer } from "../state/chatReducer";
 
 export interface MiraChat {
   state: ChatEngineState;
   openSubject: (subjectId: string) => void;
   openChat: (id: string) => void;
   goHome: () => void;
-  commit: () => void;
-  restart: () => void;
-  sendControl: (key: string) => void;
   sendMessage: (text: string) => void;
-  rateConfidence: (msgId: number, value: ConfidenceValue) => void;
-  answerQuiz: (msgId: number, idx: number) => void;
 }
 
-/** The guided-conversation engine for one student session. */
-export function useMiraChat(name: string): MiraChat {
-  const [state, dispatch] = useReducer(chatReducer, null, () =>
-    initialChatState(buildSeeds()),
+type Dispatcher = Dispatch<ChatAction>;
+
+/** Open an existing conversation, loading its transcript from the backend. */
+function runOpen(
+  dispatch: Dispatcher,
+  state: ChatEngineState,
+  id: string,
+): void {
+  const summary = state.chats[id];
+  if (!summary) return;
+  dispatch({
+    type: "openExisting",
+    id,
+    subjectId: summary.subjectId,
+    title: summary.title,
+    status: summary.status,
+    hintRung: summary.hintRung,
+    messages: [],
+  });
+  fetchChatMessages(id)
+    .then((messages) => dispatch({ type: "setMessages", id, messages }))
+    .catch(() => undefined);
+}
+
+/** Send one student turn to the live tutor graph and append its reply. */
+async function runSend(
+  dispatch: Dispatcher,
+  sending: MutableRefObject<boolean>,
+  state: ChatEngineState,
+  text: string,
+): Promise<void> {
+  const trimmed = text.trim();
+  if (!trimmed || sending.current) return;
+  sending.current = true;
+  dispatch({ type: "sendUser", text: trimmed });
+  try {
+    const res = await askTutor(trimmed, state.sessionId, state.subjectId);
+    dispatch({
+      type: "tutorReply",
+      sessionId: res.session_id,
+      text: res.message,
+      status: toChatStatus(res.action),
+      hintRung: res.hint_level ?? 0,
+    });
+  } catch (err) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "The tutor is unavailable right now.";
+    dispatch({ type: "fail", message });
+  } finally {
+    sending.current = false;
+  }
+}
+
+/** Live tutoring chat backed by `/tutor/sessions` (history) and `/tutor/ask`. */
+export function useMiraChat(): MiraChat {
+  const [state, dispatch] = useReducer(
+    chatReducer,
+    undefined,
+    initialChatState,
   );
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const seq = useRef(0);
-  const ctx: Ctx = { dispatch, timer };
+  const sending = useRef(false);
 
-  useEffect(() => () => clearTimer(timer), []);
-
-  const subjectName = subjectById(state.subjectId).name;
+  useEffect(() => {
+    let active = true;
+    fetchChatList()
+      .then(
+        ({ chats, order }) =>
+          active && dispatch({ type: "setList", chats, order }),
+      )
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return {
     state,
-    openSubject: (subjectId) => openSubjectAction(ctx, seq, name, subjectId),
-    openChat: (id) => {
-      clearTimer(timer);
-      dispatch({ type: "openChat", id });
-    },
-    goHome: () => {
-      clearTimer(timer);
-      dispatch({ type: "goHome" });
-    },
-    commit: () => dispatch({ type: "commit" }),
-    restart: () => {
-      clearTimer(timer);
-      dispatch({ type: "reset", seeds: buildSeeds() });
-    },
-    sendControl: (key) => runControl(ctx, key, name, subjectName),
-    sendMessage: (text) => {
-      if (text.trim()) dispatch({ type: "appendMaya", text: text.trim() });
-    },
-    rateConfidence: (msgId, value) =>
-      dispatch({ type: "rateConf", msgId, value }),
-    answerQuiz: (msgId, idx) => handleAnswer(ctx, state, { msgId, idx, name }),
+    openSubject: (subjectId) => dispatch({ type: "openDraft", subjectId }),
+    openChat: (id) => runOpen(dispatch, state, id),
+    goHome: () => dispatch({ type: "goHome" }),
+    sendMessage: (text) => void runSend(dispatch, sending, state, text),
   };
 }

@@ -19,8 +19,8 @@ flowchart TD
 
     TutorR --> AuthDep
     TutorR --> TutorSvc["tutor/service.py"]
-    TutorSvc --> Pipeline["tutor/pipeline.py<br/>(LangGraph)"]
-    TutorSvc --> TutorModel["tutor/models.py<br/>QuestionLog"]
+    TutorSvc --> Pipeline["tutor/graph/<br/>(LangGraph multi-agent)"]
+    TutorSvc --> TutorModel["tutor/models.py<br/>profile · sessions · history<br/>evidence · escalations"]
 
     AuthSvc --> Core["core/<br/>config · database · security"]
     TutorSvc --> Core
@@ -30,6 +30,7 @@ flowchart TD
     AuthModel --> DB[(PostgreSQL)]
     TutorModel --> DB
     LLM --> Providers([Claude subscription ·<br/>Anthropic · OpenAI · Gemini ·<br/>Local OpenAI-compatible])
+    Pipeline -.->|traces per agent| LS([LangSmith<br/>observability])
 ```
 
 ## Request lifecycle — POST /tutor/ask
@@ -40,27 +41,84 @@ sequenceDiagram
     participant R as tutor/routes.py
     participant D as get_current_student
     participant S as tutor/service.py
-    participant P as pipeline.py (LangGraph)
+    participant G as graph/ (LangGraph multi-agent)
     participant DB as PostgreSQL
 
-    C->>R: POST /tutor/ask (JWT, question)
+    C->>R: POST /tutor/ask (JWT, question, session_id?)
     R->>D: resolve current student (verify JWT)
     D-->>R: Student
-    R->>R: check LLM configured (else 503)
-    R->>S: ask_question(db, student, question)
-    S->>P: run_tutor_pipeline(question, name)
-    P-->>S: {analysis, answer, followups}
-    S->>DB: INSERT question_logs
-    S-->>R: result
-    R-->>C: 200 QuestionResponse
+    R->>R: llm_is_configured() (else 503)
+    R->>S: ask_question(db, student, question, session_id)
+    S->>DB: hydrate session state + append user message
+    S->>G: tutor_graph.ainvoke(state)
+    G-->>S: {action, output, ...} (hint / completed / escalation)
+    S->>DB: persist session state, history, evidence, profile
+    S-->>R: AskResponse
+    R-->>C: 200 AskResponse
 ```
 
-## AI pipeline (LangGraph state graph)
+## AI graph (LangGraph multi-agent, supervisor-routed)
+
+The supervisor re-routes after every agent based on which state fields are filled
+(see `graph/router.py`). A turn ends (`END`) either after a hint is delivered
+(awaiting the student's answer) or after the memory/revision or escalation branch.
 
 ```mermaid
-flowchart LR
-    START((START)) --> A[analyze<br/>subject / difficulty]
-    A --> T[tutor<br/>adaptive explanation]
-    T --> F[followup<br/>3 practice questions]
-    F --> END((END))
+flowchart TD
+    START((START)) --> SUP{supervisor<br/>router}
+    SUP -->|profile missing| PRO[Profile]
+    SUP -->|diagnostic missing| DIA[Diagnostic]
+    SUP -->|misconception missing| MIS[Misconception]
+    SUP -->|plan missing| PLA[Planner]
+    SUP -->|hint missing| HIN[Hint]
+    SUP -->|answered| EVA[Evaluator]
+    SUP -->|correct| MEM[Memory]
+    SUP -->|failures>=3 / distress| ESC[Escalation]
+    SUP -->|hint delivered| ENDA((END: await answer))
+
+    PRO --> SUP
+    DIA --> SUP
+    MIS --> SUP
+    PLA --> SUP
+    HIN --> GUA[Hint Guard]
+    GUA --> SUP
+    EVA --> SUP
+    MEM --> REV[Revision Planner]
+    REV --> ENDC((END: completed))
+    ESC --> ENDE((END: escalated))
+```
+
+### Multi-turn loop (across API calls)
+
+The session now opens with an **interactive Diagnostic phase**: the tutor asks 3 probing
+questions (one per turn) before the first hint. The Misconception agent categorizes the
+difficulty from that Q&A (`unsure_of_concept` / `misunderstanding_concept` /
+`missing_prerequisite` / `none`).
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as service (session state)
+    participant G as tutor_graph
+    C->>S: POST /tutor/ask {question}
+    S->>G: run -> Profile -> Diagnostic (ask probe 1)
+    G-->>S: action=diagnostic (await)
+    S-->>C: {session_id, probing question 1/3}
+    Note over C,G: student answers probes 2/3 and 3/3 (2 more turns)
+    C->>S: POST /tutor/ask {answer 3, session_id}
+    S->>G: Diagnostic consolidates -> Misconception -> Planner..Hint+Guard
+    G-->>S: action=hint (await)
+    S-->>C: {hint}
+    C->>S: POST /tutor/ask {answer, session_id}
+    S->>G: resume -> Evaluator
+    alt correct
+        G-->>S: Memory -> Revision (completed)
+        S-->>C: {completed, mastery, next_review}
+    else wrong (failures<3)
+        G-->>S: new Hint (await)
+        S-->>C: {hint}
+    else failures>=3 or distress
+        G-->>S: Escalation
+        S-->>C: {escalation}
+    end
 ```

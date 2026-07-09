@@ -7,12 +7,10 @@ import { MessageList } from "./messages/MessageList";
 
 interface ChatViewProps {
   chat: MiraChat;
-  celebrate: boolean;
-  onToTeacher: () => void;
 }
 
 /** Single-conversation screen: header, transcript, and composer/banner. */
-export function ChatView({ chat, celebrate, onToTeacher }: ChatViewProps) {
+export function ChatView({ chat }: ChatViewProps) {
   const { state } = chat;
   const subject = subjectById(state.subjectId);
 
@@ -28,25 +26,20 @@ export function ChatView({ chat, celebrate, onToTeacher }: ChatViewProps) {
         messages={state.messages}
         typing={state.typing}
         status={state.status}
-        celebrate={celebrate}
-        onRate={chat.rateConfidence}
-        onAnswer={chat.answerQuiz}
       />
       <div className="border-t border-line bg-paper px-[clamp(14px,2.4vw,26px)] pb-[14px] pt-[12px]">
         <div className="mx-auto max-w-[760px]">
+          {state.error && (
+            <div className="mb-[11px] rounded-lg border border-coral-s bg-coral-s px-[13px] py-[10px] text-[12.5px] text-coral-d">
+              {state.error}
+            </div>
+          )}
           {state.locked ? (
             <CompletionBanner
               onNewChat={() => chat.openSubject(state.subjectId)}
-              onToTeacher={onToTeacher}
             />
           ) : (
-            <Composer
-              controls={state.controls}
-              hintRung={state.hintRung}
-              leakChecks={state.leakChecks}
-              onControl={chat.sendControl}
-              onSend={chat.sendMessage}
-            />
+            <Composer hintRung={state.hintRung} onSend={chat.sendMessage} />
           )}
         </div>
       </div>

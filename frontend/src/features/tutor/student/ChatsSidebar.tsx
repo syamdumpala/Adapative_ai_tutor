@@ -1,16 +1,22 @@
 import { Badge, GlyphTile } from "@/components";
 import { cn } from "@/lib/cn";
 import { subjectById } from "../data/subjects";
-import type { Chat } from "../types";
+import type { ChatSummary } from "../state/chatHelpers";
 
 interface ChatsSidebarProps {
-  chats: Record<string, Chat>;
+  chats: Record<string, ChatSummary>;
   order: string[];
   onOpenChat: (id: string) => void;
   className?: string;
 }
 
-function ChatItem({ chat, onClick }: { chat: Chat; onClick: () => void }) {
+function ChatItem({
+  chat,
+  onClick,
+}: {
+  chat: ChatSummary;
+  onClick: () => void;
+}) {
   const subject = subjectById(chat.subjectId);
   const pending = chat.status === "pending";
   return (

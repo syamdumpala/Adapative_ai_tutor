@@ -38,3 +38,17 @@ async def get_current_student(
     if student is None:
         raise credentials_exc
     return student
+
+
+# Alias: any authenticated account (student or teacher).
+get_current_user = get_current_student
+
+
+async def require_teacher(current: Student = Depends(get_current_student)) -> Student:
+    """Guard for teacher/admin routes: 403 unless the account has the teacher role."""
+    if current.role != "teacher":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This action requires a teacher account",
+        )
+    return current
