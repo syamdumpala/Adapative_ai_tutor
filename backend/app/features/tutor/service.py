@@ -12,10 +12,45 @@ from app.features.tutor.graph import trace
 from app.features.tutor.graph.graph import tutor_graph
 from app.features.tutor.graph.state import detect_distress, new_state, serialize
 from app.features.tutor.models import ConversationHistory, TutorSession
-from app.features.tutor.repository import get_session
-from app.features.tutor.schemas import AskResponse
+from app.features.tutor.repository import get_conversation, get_session, list_sessions
+from app.features.tutor.schemas import (
+    AskResponse,
+    ConversationMessage,
+    ConversationResponse,
+    SessionSummary,
+)
 
 logger = logging.getLogger("app.tutor")
+
+# Assistant `action` -> conversation event `kind` for the transcript / conversation API.
+_ACTION_KIND = {
+    "diagnostic": "diagnostic_question",
+    "hint": "hint",
+    "escalation": "escalation",
+    "completed": "completed",
+    "await": "hint",
+}
+
+
+def _incoming_kind(awaiting: str | None) -> str:
+    """Event kind for the student's message this turn."""
+    if awaiting == "diagnostic":
+        return "diagnostic_answer"
+    if awaiting == "hint":
+        return "hint_answer"
+    return "question"
+
+
+def _to_transcript(rows: list[ConversationHistory]) -> list[dict]:
+    """Map stored rows to the {role, kind, content} transcript the agents consume."""
+    return [
+        {
+            "role": "student" if row.role == "user" else "tutor",
+            "kind": row.kind,
+            "content": row.content,
+        }
+        for row in rows
+    ]
 
 
 class SessionNotFoundError(Exception):
@@ -76,9 +111,20 @@ async def ask_question(
     state["diag_asked_this_turn"] = False  # transient, reset each turn
     state["distress"] = detect_distress(question)
 
+    # Build the running conversation from prior turns, then append this student message,
+    # so every agent in the graph sees the whole session (initial question, diagnostic
+    # Q&A, every hint and answer) and never loses context.
+    incoming_kind = _incoming_kind(awaiting)
+    history = _to_transcript(await get_conversation(db, session_id))
+    history.append({"role": "student", "kind": incoming_kind, "content": question})
+
     db.add(
         ConversationHistory(
-            session_id=session_id, student_id=student.id, role="user", content=question
+            session_id=session_id,
+            student_id=student.id,
+            role="user",
+            kind=incoming_kind,
+            content=question,
         )
     )
 
@@ -87,7 +133,7 @@ async def ask_question(
         state,
         config={
             "recursion_limit": 60,
-            "configurable": {"db": db, "student": student},
+            "configurable": {"db": db, "student": student, "history": history},
             "run_name": f"tutor-session:{session_id[:8]}",
             "tags": ["tutor-graph"],
             "metadata": {
@@ -115,13 +161,17 @@ async def ask_question(
         )
 
     output = result.get("output", "")
+    action = result.get("action", "await")
     db.add(
         ConversationHistory(
-            session_id=session_id, student_id=student.id, role="assistant", content=output
+            session_id=session_id,
+            student_id=student.id,
+            role="assistant",
+            kind=_ACTION_KIND.get(action, "hint"),
+            content=output,
         )
     )
 
-    action = result.get("action", "await")
     if action == "diagnostic":
         awaiting_type, session.status = "diagnostic", "active"
     elif action == "hint":
@@ -148,3 +198,44 @@ async def ask_question(
         next_review=result.get("next_review"),
         agents=agent_io if settings.debug_agent_io else None,
     )
+
+
+async def get_session_conversation(
+    db: AsyncSession, student: Student, session_id: str
+) -> ConversationResponse:
+    """Return the full typed transcript of one session (owned by the student)."""
+    session = await get_session(db, session_id, student.id)
+    if session is None:
+        raise SessionNotFoundError
+    rows = await get_conversation(db, session_id)
+    messages = [
+        ConversationMessage(
+            role="student" if row.role == "user" else "tutor",
+            kind=row.kind or _incoming_kind(None),
+            content=row.content,
+            created_at=row.created_at.isoformat() if row.created_at else None,
+        )
+        for row in rows
+    ]
+    return ConversationResponse(
+        session_id=session.id,
+        subject=(session.state or {}).get("subject"),
+        initial_question=session.concept,
+        status=session.status,
+        messages=messages,
+    )
+
+
+async def list_student_sessions(db: AsyncSession, student: Student) -> list[SessionSummary]:
+    """Return the student's sessions (most recent first) for a conversation index."""
+    sessions = await list_sessions(db, student.id)
+    return [
+        SessionSummary(
+            session_id=s.id,
+            initial_question=s.concept,
+            status=s.status,
+            subject=(s.state or {}).get("subject"),
+            created_at=s.created_at.isoformat() if s.created_at else None,
+        )
+        for s in sessions
+    ]

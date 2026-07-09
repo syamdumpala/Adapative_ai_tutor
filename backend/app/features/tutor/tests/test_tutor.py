@@ -17,7 +17,9 @@ REGISTRATION = {
 }
 
 
-async def _fake_run_agent(stage: str, schema, system: str, user: str) -> dict:
+async def _fake_run_agent(
+    stage: str, schema, system: str, user: str, history=None, subject=None
+) -> dict:
     if stage == "diagnostic":
         # The consolidate prompt asks to "summarize"; otherwise it's a probing question.
         if "summarize" in system.lower():
@@ -121,13 +123,24 @@ async def test_correct_answer_completes(client, mock_llm):
     assert body["next_review"] is not None
 
 
-async def test_repeated_wrong_answers_escalate(client, mock_llm):
+async def test_unlimited_hints_no_escalation_on_repeated_wrong(client, mock_llm):
+    # Hints are unlimited now: repeated wrong answers keep producing new hints and never
+    # auto-escalate.
     headers = await _auth_header(client)
     sid, _ = await _reach_first_hint(client, headers)
     last = None
-    for _ in range(3):
+    for _ in range(5):
         last = await _ask(client, headers, "this is wrong", sid)
-    assert last["action"] == "escalation"
+        assert last["action"] == "hint"
+    assert last["action"] == "hint"
+
+
+async def test_distress_escalates(client, mock_llm):
+    # Only student distress ends the loop (hands off to a teacher).
+    headers = await _auth_header(client)
+    sid, _ = await _reach_first_hint(client, headers)
+    body = await _ask(client, headers, "i give up, this is too hard", sid)
+    assert body["action"] == "escalation"
 
 
 async def test_closed_session_conflicts(client, mock_llm):
@@ -154,3 +167,37 @@ async def test_ask_rejects_blank_question(client, mock_llm):
     headers = await _auth_header(client)
     resp = await client.post("/tutor/ask", json={"question": "   "}, headers=headers)
     assert resp.status_code == 422
+
+
+async def test_conversation_api_returns_full_transcript(client, mock_llm):
+    headers = await _auth_header(client)
+    sid, _ = await _reach_first_hint(client, headers)
+
+    resp = await client.get(f"/tutor/sessions/{sid}/conversation", headers=headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["session_id"] == sid
+    assert body["initial_question"] == "How do derivatives work?"
+
+    kinds = [m["kind"] for m in body["messages"]]
+    roles = [m["role"] for m in body["messages"]]
+    # The very first message is the student's initial question, and the transcript
+    # includes diagnostic questions/answers and at least one hint.
+    assert body["messages"][0]["role"] == "student"
+    assert body["messages"][0]["kind"] == "question"
+    assert "diagnostic_question" in kinds
+    assert "diagnostic_answer" in kinds
+    assert "hint" in kinds
+    assert set(roles) <= {"student", "tutor"}
+
+
+async def test_sessions_list_and_conversation_isolation(client, mock_llm):
+    headers = await _auth_header(client)
+    sid, _ = await _reach_first_hint(client, headers)
+
+    sessions = (await client.get("/tutor/sessions", headers=headers)).json()
+    assert any(s["session_id"] == sid for s in sessions)
+
+    # A conversation for an unknown session is a 404.
+    missing = await client.get("/tutor/sessions/nope/conversation", headers=headers)
+    assert missing.status_code == 404

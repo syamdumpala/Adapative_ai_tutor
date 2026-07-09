@@ -1,7 +1,7 @@
 """Evaluator — checks the student's answer, records evidence, computes confidence.
 
-On a wrong answer (with failures < 3 and no distress) it clears the plan/hint
-so the supervisor loops back to the Planner for another attempt (section 2 of the guide).
+On a wrong answer (and no distress) it clears the plan/hint so the supervisor loops back
+to the Planner for another attempt. Hints are unlimited: only distress ends the loop.
 """
 
 from app.features.tutor.graph import llm
@@ -23,6 +23,9 @@ async def evaluator_node(state, config):
     db = config["configurable"]["db"]
     student = config["configurable"]["student"]
 
+    # The evaluator judges the student's answer against the INITIAL question
+    # (`state["concept"]`). The full session transcript (history) is prepended so it can
+    # see every hint given and decide whether the answer solves that initial question.
     data = await llm.run_agent(
         "evaluator",
         EvaluationResult,
@@ -33,6 +36,8 @@ async def evaluator_node(state, config):
             (state.get("tutor_plan") or {}).get("plan"),
             state["message"],
         ),
+        history=config["configurable"].get("history"),
+        subject=state["subject"],
     )
     correct = bool(data.get("correct"))
     feedback = data.get("feedback", "")
@@ -66,8 +71,9 @@ async def evaluator_node(state, config):
     if not correct:
         failures = state.get("failures", 0) + 1
         updates["failures"] = failures
-        if failures < 3 and not state.get("distress"):
-            # Loop back for another attempt with a more specific hint.
+        # Unlimited hints: on every wrong answer we loop back for a fresh, more specific
+        # hint. Only student distress ends the loop (-> escalation); there is no attempt cap.
+        if not state.get("distress"):
             updates.update(
                 {
                     "tutor_plan": None,

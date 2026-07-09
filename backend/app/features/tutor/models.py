@@ -56,6 +56,9 @@ class ConversationHistory(Base):
         ForeignKey("students.id", ondelete="CASCADE"), index=True
     )
     role: Mapped[str] = mapped_column(String(16))  # user|assistant
+    # Event type for the conversation API: question | diagnostic_question |
+    # diagnostic_answer | hint | hint_answer | evaluation | completed | escalation.
+    kind: Mapped[str | None] = mapped_column(String(32), nullable=True)
     content: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

@@ -12,6 +12,34 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-07-09 — Session context for every agent, conversation API, unlimited hints
+**Author:** AI (Claude)
+**Summary:** Fixed context loss across agents. Each turn the service now rebuilds the
+full session transcript from `conversation_history` (+ the current student message)
+and passes it into the graph via `config.configurable.history`; `llm.run_agent` gained
+`history` and `subject` params and prepends the transcript as chat messages (student →
+Human, tutor → AI, labelled by event kind) before the agent's task. So every agent —
+Diagnostic, Misconception, Planner, Hint, Guard, Evaluator — sees the whole
+conversation. The **Evaluator** therefore judges the student's answer against the
+**initial question** with all hints in context. A **subject guardrail** is appended to
+every agent call at runtime (prompts unchanged) so agents refuse off-topic / role-change
+input. The **3-hint cap was removed**: wrong answers loop back for a new hint
+indefinitely; only student distress escalates to a teacher (router + evaluator +
+escalation updated). Added a **conversation API**: `GET /tutor/sessions` and
+`GET /tutor/sessions/{id}/conversation` return the typed transcript (question,
+diagnostic_question/answer, hint, hint_answer, completed, escalation), backed by a new
+nullable `conversation_history.kind` column (idempotent Postgres ALTER on startup).
+**Files:**
+- Modified: `graph/llm.py` (history + guardrail), all six LLM nodes (pass history/subject),
+  `graph/nodes/evaluator.py` + `graph/router.py` + `graph/nodes/escalation.py` (unlimited
+  hints, distress-only escalation), `models.py` (kind column), `main.py` (startup ALTER),
+  `repository.py` (`get_conversation`, `list_sessions`), `service.py` (build/pass history,
+  typed rows, conversation/session views), `schemas.py` (conversation schemas),
+  `routes.py` (2 GET endpoints), `tests/test_tutor.py`, `architecture/DIAGRAM.md`.
+**Tests:** `make test` green (27 passing); ruff clean. Verified end-to-end that the
+transcript is prepended as messages and the subject guardrail + JSON schema hint are
+appended, against a stubbed subscription model.
+
 ## 2026-07-09 — Agents via `create_agent`, JSON-restricted output, RAG removed
 **Author:** AI (Claude)
 **Summary:** Each LLM-backed agent is now built with LangChain's `create_agent`

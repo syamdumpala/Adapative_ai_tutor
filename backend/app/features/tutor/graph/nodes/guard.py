@@ -16,6 +16,8 @@ async def guard_node(state, config):
         GuardResult,
         prompts.SYSTEM,
         prompts.user(state["subject"], state["concept"], state["hint_level"], state["hint"]),
+        history=config["configurable"].get("history"),
+        subject=state["subject"],
     )
     approved = not str(result["verdict"]).strip().upper().startswith("REJECT")
     attempts = state.get("hint_attempts", 0)

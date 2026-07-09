@@ -3,7 +3,12 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.tutor.models import EvidenceEvent, StudentProfile, TutorSession
+from app.features.tutor.models import (
+    ConversationHistory,
+    EvidenceEvent,
+    StudentProfile,
+    TutorSession,
+)
 
 
 async def get_or_create_profile(db: AsyncSession, student_id: int) -> StudentProfile:
@@ -34,6 +39,27 @@ async def get_session(db: AsyncSession, session_id: str, student_id: int) -> Tut
         )
     )
     return result.scalar_one_or_none()
+
+
+async def get_conversation(db: AsyncSession, session_id: str) -> list[ConversationHistory]:
+    """Return every message of a session in chronological order (for the conversation API
+    and to rebuild the agent context each turn)."""
+    result = await db.execute(
+        select(ConversationHistory)
+        .where(ConversationHistory.session_id == session_id)
+        .order_by(ConversationHistory.id)
+    )
+    return list(result.scalars().all())
+
+
+async def list_sessions(db: AsyncSession, student_id: int) -> list[TutorSession]:
+    """Return a student's tutoring sessions, most recent first."""
+    result = await db.execute(
+        select(TutorSession)
+        .where(TutorSession.student_id == student_id)
+        .order_by(TutorSession.created_at.desc())
+    )
+    return list(result.scalars().all())
 
 
 async def apply_evaluation(

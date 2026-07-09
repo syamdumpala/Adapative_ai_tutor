@@ -33,3 +33,28 @@ class AskResponse(BaseModel):
     sources: list[str] = []
     # Populated only when DEBUG_AGENT_IO=true: {agent: {input, output}} for this turn.
     agents: dict | None = None
+
+
+class ConversationMessage(BaseModel):
+    role: str  # student | tutor
+    # question | diagnostic_question | diagnostic_answer | hint | hint_answer |
+    # completed | escalation
+    kind: str
+    content: str
+    created_at: str | None = None
+
+
+class ConversationResponse(BaseModel):
+    session_id: str
+    initial_question: str
+    subject: str | None = None
+    status: str
+    messages: list[ConversationMessage]
+
+
+class SessionSummary(BaseModel):
+    session_id: str
+    initial_question: str
+    subject: str | None = None
+    status: str
+    created_at: str | None = None

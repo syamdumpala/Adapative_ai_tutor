@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.api.router import api_router
 from app.core.config import DEFAULT_JWT_SECRET, settings
@@ -27,6 +28,12 @@ async def lifespan(app: FastAPI):
     # Create tables on startup (use Alembic for real migrations in production).
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Lightweight, idempotent migration: create_all never ALTERs an existing table,
+        # so add the conversation_history.kind column on already-provisioned Postgres DBs.
+        if conn.dialect.name == "postgresql":
+            await conn.execute(
+                text("ALTER TABLE conversation_history ADD COLUMN IF NOT EXISTS kind VARCHAR(32)")
+            )
     yield
     await engine.dispose()
 

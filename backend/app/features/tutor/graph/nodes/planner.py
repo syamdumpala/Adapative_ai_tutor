@@ -25,6 +25,8 @@ async def planner_node(state, config):
         prompts.user(
             state["subject"], state["concept"], difficulty, state.get("misconception"), hint_level
         ),
+        history=config["configurable"].get("history"),
+        subject=state["subject"],
     )
     return {
         "tutor_plan": {

@@ -21,11 +21,13 @@ def _qa_text(qa: list) -> str:
 
 
 async def diagnostic_node(state, config):
+    print(state)
     qa = list(state.get("diagnostic_qa") or [])
     pending = state.get("diagnostic_pending")
     profile = state.get("profile")
     asked = _qa_text(qa) or "(none yet)"
     subject = state.get("subject")
+    history = config["configurable"].get("history")
 
     # If this turn is the answer to the probing question we asked last turn, record it.
     if pending and state.get("incoming") == "diagnostic_answer":
@@ -39,6 +41,8 @@ async def diagnostic_node(state, config):
             DiagnosticObservations,
             prompts.CONSOLIDATE_SYSTEM,
             prompts.consolidate_user(state["concept"], qa),
+            history=history,
+            subject=subject,
         )
         return {
             "diagnostic": {"observations": result["observations"], "qa": qa},
@@ -50,7 +54,14 @@ async def diagnostic_node(state, config):
     user_prompt = prompts.ask_user(
         subject, state["concept"], profile, asked, len(qa) + 1, DIAGNOSTIC_ROUNDS
     )
-    result = await llm.run_agent("diagnostic", DiagnosticQuestion, prompts.ASK_SYSTEM, user_prompt)
+    result = await llm.run_agent(
+        "diagnostic",
+        DiagnosticQuestion,
+        prompts.ASK_SYSTEM,
+        user_prompt,
+        history=history,
+        subject=subject,
+    )
     question = result["question"]
     return {
         "diagnostic_qa": qa,
