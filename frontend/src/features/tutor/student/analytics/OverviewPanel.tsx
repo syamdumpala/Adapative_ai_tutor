@@ -38,8 +38,17 @@ export function OverviewPanel() {
       <KpiRow perf={perf} />
       <ChartCard
         title="Mastery & confidence over time"
-        subtitle="Every completed session · coral dots flag a misconception"
-        height={280}
+        subtitle="Every completed session · left axis %, right axis Misconfidence Index"
+        info={
+          "Each point is one completed session, oldest to newest. Mastery and " +
+          "confidence (left axis, 0–100%) show how much you've learned and how sure " +
+          "you feel. The Misconfidence Index (right axis) compares the two: it's " +
+          "positive when your confidence matches how well you actually do (solid " +
+          "understanding), and negative when you're confident but wrong — a " +
+          "misconception risk. Coral dots mark sessions where a specific " +
+          "misconception was detected."
+        }
+        height={300}
         isEmpty={noPoints}
       >
         <MasteryTrendChart points={points} />

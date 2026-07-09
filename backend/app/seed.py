@@ -34,6 +34,7 @@ from app.features.tutor.models import (
     TeacherEscalation,
     TutorSession,
 )
+from app.features.tutor.repository import misconfidence_index
 
 logger = logging.getLogger("app.seed")
 
@@ -582,6 +583,9 @@ async def _seed_session_analytics(db: AsyncSession, spec: dict) -> None:
                 created_at=created,
             )
         )
+        # A flagged early point reads as "confidently wrong" (negative MI = risk);
+        # a clean point reads as a correct completion (positive MI). So the index
+        # line climbs from risk toward mastery, mirroring the canonical formula.
         db.add(
             SessionAnalytics(
                 student_id=student.id,
@@ -590,6 +594,8 @@ async def _seed_session_analytics(db: AsyncSession, spec: dict) -> None:
                 mastery=mastery,
                 confidence=confidence,
                 misconception_category=category,
+                misconception=category,
+                misconception_index=misconfidence_index(confidence, correct=category is None),
                 created_at=created,
                 updated_at=created,
             )

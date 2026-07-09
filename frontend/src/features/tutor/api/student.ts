@@ -61,6 +61,9 @@ export interface AnalyticsPointDTO {
   mastery: number;
   confidence: number;
   misconception_category: string | null;
+  misconception: string | null;
+  /** Signed Misconfidence Index (MI): positive = mastery, negative = misconception risk. */
+  misconception_index: number;
   created_at: string | null;
 }
 

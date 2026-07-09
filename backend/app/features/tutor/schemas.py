@@ -161,6 +161,8 @@ class AnalyticsPoint(BaseModel):
     mastery: float
     confidence: float
     misconception_category: str | None = None
+    misconception: str | None = None  # the misconception value/name
+    misconception_index: float = 0.0  # signed Misconfidence Index (MI); +ve = mastery, -ve = risk
     created_at: str | None = None
 
 
@@ -174,11 +176,22 @@ class SubjectAnalytics(BaseModel):
     sessions: int
 
 
+class MisconceptionMatrixCell(BaseModel):
+    """One cell of the subject × misconception-category matrix (a count of sessions)."""
+
+    subject_id: str | None = None
+    subject_name: str | None = None
+    misconception_category: str | None = None
+    count: int
+
+
 class AnalyticsResponse(BaseModel):
-    """Plot-ready analytics: per-subject aggregates plus the raw per-session points."""
+    """Plot-ready analytics: per-subject aggregates, the raw per-session points, and a
+    subject × misconception-category matrix (session counts)."""
 
     by_subject: list[SubjectAnalytics]
     points: list[AnalyticsPoint]
+    misconception_matrix: list[MisconceptionMatrixCell]
 
 
 # --- Per-topic learning analytics (concept-grain, student's own) --------------

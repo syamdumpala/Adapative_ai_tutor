@@ -103,6 +103,9 @@ async def test_seeded_analytics_populate_progress_charts(analytics_client):
     assert points[-1]["mastery"] > points[0]["mastery"]
     # Some early points carry a misconception (drives the donut).
     assert any(p["misconception_category"] for p in points)
+    # The signed Misconfidence Index is populated (not flat at 0) and both signs occur.
+    mis = [p["misconception_index"] for p in points]
+    assert any(m < 0 for m in mis) and any(m > 0 for m in mis)
     # One by-subject aggregate per distinct subject the points span.
     subjects = {p["subject_id"] for p in points}
     assert subjects >= {"1"}

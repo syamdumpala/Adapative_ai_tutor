@@ -25,6 +25,7 @@ from app.features.tutor.schemas import (
     AnalyticsPoint,
     AnalyticsResponse,
     MessageOut,
+    MisconceptionMatrixCell,
     MisconceptionRef,
     PerfInsight,
     PerformanceOut,
@@ -360,6 +361,8 @@ async def get_analytics(db: AsyncSession, student: Student) -> AnalyticsResponse
             mastery=round(r.mastery, 3),
             confidence=round(r.confidence, 3),
             misconception_category=r.misconception_category,
+            misconception=r.misconception,
+            misconception_index=round(r.misconception_index or 0.0, 4),
             created_at=r.created_at.isoformat() if r.created_at else None,
         )
         for r in rows
@@ -381,7 +384,28 @@ async def get_analytics(db: AsyncSession, student: Student) -> AnalyticsResponse
     ]
     by_subject.sort(key=lambda s: s.subject_name or s.subject_id or "")
 
-    return AnalyticsResponse(by_subject=by_subject, points=points)
+    # Subject × misconception-category matrix: how many sessions fell into each
+    # (subject, category) bucket — plot-ready as a heatmap / grouped bars.
+    counts: dict[tuple[str | None, str | None], int] = {}
+    for r in rows:
+        key = (r.subject_id, r.misconception_category)
+        counts[key] = counts.get(key, 0) + 1
+    misconception_matrix = [
+        MisconceptionMatrixCell(
+            subject_id=sid,
+            subject_name=(names[sid].name if sid in names else None),
+            misconception_category=category,
+            count=count,
+        )
+        for (sid, category), count in counts.items()
+    ]
+    misconception_matrix.sort(
+        key=lambda c: (c.subject_name or c.subject_id or "", c.misconception_category or "")
+    )
+
+    return AnalyticsResponse(
+        by_subject=by_subject, points=points, misconception_matrix=misconception_matrix
+    )
 
 
 async def get_topic_analytics(db: AsyncSession, student: Student) -> TopicAnalyticsResponse:

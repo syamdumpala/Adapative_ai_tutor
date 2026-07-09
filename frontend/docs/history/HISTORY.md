@@ -4,6 +4,23 @@ Append-only changelog. Newest first.
 
 ---
 
+## 2026-07-10 — Trend chart: Misconfidence Index line + info tooltip
+
+Extended the "Mastery & confidence over time" chart on the student progress page.
+
+- **Third series** — the backend now returns a signed **Misconfidence Index**
+  (`misconception_index`, MI = −C·(C−Â); positive = mastery, negative =
+  confidently-wrong risk) per completed session. `MasteryTrendChart` plots it as
+  a third amber line on a **secondary right axis** (mastery/confidence stay on the
+  left 0–100% axis), with a dashed zero reference line marking the neutral point.
+  The coral "misconception detected" marker dots moved onto this MI line, and the
+  tooltip formats MI as a signed decimal vs. the % series.
+- **Info affordance** — new `InfoDot` ("?" circle, hover/focus reveals a
+  paragraph) wired into `ChartCard` via an optional `info` prop; the trend card
+  now explains what the chart shows and how the index is read.
+- **API** — `AnalyticsPointDTO` gains `misconception` + `misconception_index`.
+- **Verify** — `npm run check` + `next build` green.
+
 ## 2026-07-10 — Student analytics page (performance graphs)
 
 Added a dedicated **"My progress"** page for the signed-in student that charts

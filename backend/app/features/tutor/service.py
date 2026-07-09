@@ -4,7 +4,6 @@ import json
 import logging
 from uuid import uuid4
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -13,7 +12,7 @@ from app.features.catalog.models import Subject
 from app.features.tutor.graph import trace
 from app.features.tutor.graph.graph import tutor_graph
 from app.features.tutor.graph.state import detect_distress, new_state, serialize
-from app.features.tutor.models import ConversationHistory, SessionAnalytics, TutorSession
+from app.features.tutor.models import ConversationHistory, TutorSession
 from app.features.tutor.repository import get_conversation, get_session, list_sessions
 from app.features.tutor.schemas import (
     AskResponse,
@@ -72,41 +71,6 @@ async def fetch_subject_name(db: AsyncSession, subject_id: str | None, fallback:
         return fallback
     subject = await db.get(Subject, subject_id)
     return subject.name if subject else fallback
-
-
-async def record_session_analytics(db: AsyncSession, session: TutorSession, result: dict) -> None:
-    """Upsert one analytics snapshot for a completed session (subject vs mastery vs
-    confidence, plus the misconception category) — the grain the analytics charts read.
-
-    One row per session (keyed by session_id); re-completing a session updates it.
-    """
-    profile = result.get("profile") or {}
-    detail = result.get("misconception_detail") or {}
-    category = result.get("misconception") or detail.get("category")
-    if category in (None, "none", ""):
-        category = None
-    mastery = float(profile.get("mastery") or 0.0)
-    confidence = float(profile.get("confidence") or 0.0)
-
-    row = (
-        await db.execute(select(SessionAnalytics).where(SessionAnalytics.session_id == session.id))
-    ).scalar_one_or_none()
-    if row is None:
-        db.add(
-            SessionAnalytics(
-                student_id=session.student_id,
-                session_id=session.id,
-                subject_id=session.subject_id,
-                mastery=mastery,
-                confidence=confidence,
-                misconception_category=category,
-            )
-        )
-    else:
-        row.subject_id = session.subject_id
-        row.mastery = mastery
-        row.confidence = confidence
-        row.misconception_category = category
 
 
 async def ask_question(
@@ -245,11 +209,6 @@ async def ask_question(
     session.hint_rung = result.get("hint_level") or session.hint_rung
     session.leak_checks = result.get("leak_checks", session.leak_checks)
     session.state = serialize(result)
-
-    # On completion (student reaches history mode), snapshot the learning analytics
-    # (subject vs mastery vs confidence) for the charts.
-    if action == "completed":
-        await record_session_analytics(db, session, result)
 
     await db.commit()
 

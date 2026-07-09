@@ -12,6 +12,50 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-07-10 — Schema sync for new `session_analytics` columns (fix `/me/analytics` 500)
+
+**Author:** AI (Claude)
+**Summary:** On a live Postgres DB, `GET /me/analytics` 500'd with
+`UndefinedColumnError: column session_analytics.misconception does not exist`.
+`create_all` never ALTERs an existing table, and `dbsync._COLUMNS` (the additive
+schema-sync list run on startup / `make migrate`) had not been updated with the
+`session_analytics` misconception columns added after that table's first version.
+Added `misconception_category`, `misconception`, and `misconception_index`
+(`FLOAT NOT NULL DEFAULT 0`, which backfills existing rows) to `_COLUMNS`, ran
+`make migrate` (22 columns ensured), and backfilled `misconception_index` on the
+already-seeded demo rows via the canonical `misconfidence_index` formula so the
+trend line shows a real curve (MI ≈ −0.30…+0.20 per student) instead of a flat 0.
+**Files:** `app/dbsync.py` (`_COLUMNS`). **Tests:** `make test` green (62);
+verified on live Postgres — columns present, 52 rows backfilled, endpoint no
+longer errors.
+
+---
+
+## 2026-07-10 — Fix misplaced `misconception_matrix`; seed the Misconfidence Index
+
+**Author:** AI (Claude)
+**Summary:** After a pull that added the signed **Misconfidence Index**
+(`misconception_index`, MI = −C·(C−Â); `repository.misconfidence_index`) and a
+subject × misconception-category `misconception_matrix`, two merge
+inconsistencies were breaking the suite: (1) the required `misconception_matrix`
+field sat on `TopicAnalyticsResponse` while `get_analytics` builds it for
+`AnalyticsResponse` and the test reads it off `/me/analytics` — so `/me/topics`
+500'd (validation error) and `/me/analytics` silently dropped the matrix. Moved
+the field to `AnalyticsResponse` (its true home). (2) The completion test asserted
+the matrix cell `subject_id == "fractions"` while the session is created with
+`subject_id="1"`; corrected to `"1"`. Also updated the demo seed to populate
+`misconception_index` (and the `misconception` name) on each backdated snapshot —
+a flagged early point reads as confidently-wrong (negative MI), a clean point as a
+correct completion (positive MI) — so the trend line climbs from risk to mastery
+instead of sitting flat at 0.
+**Files:** `app/features/tutor/schemas.py` (move `misconception_matrix`),
+`app/features/tutor/tests/test_tutor.py` (matrix `subject_id`), `app/seed.py`
+(`misconfidence_index` import; MI/name on seeded `SessionAnalytics`).
+**Tests:** `make test` green (62 passed); ruff clean; seed re-verified end-to-end
+on SQLite (MI ranges ≈ −0.30…+0.20 across demo students, rising over time).
+
+---
+
 ## 2026-07-10 — Demo analytics seed for the student "My progress" charts
 
 **Author:** AI (Claude)
