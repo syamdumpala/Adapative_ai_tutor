@@ -12,6 +12,90 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-07-09 — Fix /tutor/ask 500 (kind width) + restore frontend read routes after merge
+
+**Author:** AI (Claude)
+**Summary:** Two fixes. (1) `/tutor/ask` 500'd on Postgres with
+`StringDataRightTruncationError`: `conversation_history.kind` was `VARCHAR(16)`
+but now stores values like `diagnostic_question` (19 chars). `create_all` /
+`ADD COLUMN IF NOT EXISTS` cannot widen an existing column, so `app/dbsync.py`
+gained a `_WIDEN` step (`ALTER COLUMN … TYPE`) that idempotently widens `kind` to
+`VARCHAR(32)` (runs on startup + `make migrate`). (2) A concurrent session's edit
+had wiped the frontend-facing read routes from `tutor/routes.py` (only `/ask`
+remained) and left a **duplicate `SessionSummary`** in `schemas.py` (the second
+def shadowed the first, breaking `reads.py`). Restored `GET /tutor/sessions`
+(Page), `/tutor/sessions/{id}`, `/tutor/sessions/{id}/messages`, `/me/profile`,
+`/me/performance`; **kept** the other session's `/tutor/sessions/{id}/conversation`;
+renamed the duplicate schema to `SessionIndexItem` (+ its `service.list_student_sessions`
+usage). Adapted `test_sessions_list_and_conversation_isolation` to the reconciled
+`Page` shape (`/tutor/sessions` is the rich chat rail; `/conversation` is the typed
+transcript).
+**Files:** `app/dbsync.py` (\_WIDEN), `app/features/tutor/routes.py` (restored routes),
+`app/features/tutor/schemas.py` (rename), `app/features/tutor/service.py` (rename
+usage), `app/features/tutor/tests/test_tutor.py`.
+**Tests:** `make test` green (all passing); ruff clean. Widen verified on the live
+Postgres (`kind` now width 32; the exact failing INSERT no longer truncates).
+
+## 2026-07-09 — Session context for every agent, conversation API, unlimited hints
+
+**Author:** AI (Claude)
+**Summary:** Fixed context loss across agents. Each turn the service now rebuilds the
+full session transcript from `conversation_history` (+ the current student message)
+and passes it into the graph via `config.configurable.history`; `llm.run_agent` gained
+`history` and `subject` params and prepends the transcript as chat messages (student →
+Human, tutor → AI, labelled by event kind) before the agent's task. So every agent —
+Diagnostic, Misconception, Planner, Hint, Guard, Evaluator — sees the whole
+conversation. The **Evaluator** therefore judges the student's answer against the
+**initial question** with all hints in context. A **subject guardrail** is appended to
+every agent call at runtime (prompts unchanged) so agents refuse off-topic / role-change
+input. The **3-hint cap was removed**: wrong answers loop back for a new hint
+indefinitely; only student distress escalates to a teacher (router + evaluator +
+escalation updated). Added a **conversation API**: `GET /tutor/sessions` and
+`GET /tutor/sessions/{id}/conversation` return the typed transcript (question,
+diagnostic_question/answer, hint, hint_answer, completed, escalation), backed by a new
+nullable `conversation_history.kind` column (idempotent Postgres ALTER on startup).
+**Files:**
+
+- Modified: `graph/llm.py` (history + guardrail), all six LLM nodes (pass history/subject),
+  `graph/nodes/evaluator.py` + `graph/router.py` + `graph/nodes/escalation.py` (unlimited
+  hints, distress-only escalation), `models.py` (kind column), `main.py` (startup ALTER),
+  `repository.py` (`get_conversation`, `list_sessions`), `service.py` (build/pass history,
+  typed rows, conversation/session views), `schemas.py` (conversation schemas),
+  `routes.py` (2 GET endpoints), `tests/test_tutor.py`, `architecture/DIAGRAM.md`.
+  **Tests:** `make test` green (27 passing); ruff clean. Verified end-to-end that the
+  transcript is prepended as messages and the subject guardrail + JSON schema hint are
+  appended, against a stubbed subscription model.
+
+## 2026-07-09 — Session context for every agent, conversation API, unlimited hints
+
+**Author:** AI (Claude)
+**Summary:** Fixed context loss across agents. Each turn the service now rebuilds the
+full session transcript from `conversation_history` (+ the current student message)
+and passes it into the graph via `config.configurable.history`; `llm.run_agent` gained
+`history` and `subject` params and prepends the transcript as chat messages (student →
+Human, tutor → AI, labelled by event kind) before the agent's task. So every agent —
+Diagnostic, Misconception, Planner, Hint, Guard, Evaluator — sees the whole
+conversation. The **Evaluator** therefore judges the student's answer against the
+**initial question** with all hints in context. A **subject guardrail** is appended to
+every agent call at runtime (prompts unchanged) so agents refuse off-topic / role-change
+input. The **3-hint cap was removed**: wrong answers loop back for a new hint
+indefinitely; only student distress escalates to a teacher (router + evaluator +
+escalation updated). Added a **conversation API**: `GET /tutor/sessions` and
+`GET /tutor/sessions/{id}/conversation` return the typed transcript (question,
+diagnostic_question/answer, hint, hint_answer, completed, escalation), backed by a new
+nullable `conversation_history.kind` column (idempotent Postgres ALTER on startup).
+**Files:**
+
+- Modified: `graph/llm.py` (history + guardrail), all six LLM nodes (pass history/subject),
+  `graph/nodes/evaluator.py` + `graph/router.py` + `graph/nodes/escalation.py` (unlimited
+  hints, distress-only escalation), `models.py` (kind column), `main.py` (startup ALTER),
+  `repository.py` (`get_conversation`, `list_sessions`), `service.py` (build/pass history,
+  typed rows, conversation/session views), `schemas.py` (conversation schemas),
+  `routes.py` (2 GET endpoints), `tests/test_tutor.py`, `architecture/DIAGRAM.md`.
+  **Tests:** `make test` green (27 passing); ruff clean. Verified end-to-end that the
+  transcript is prepended as messages and the subject guardrail + JSON schema hint are
+  appended, against a stubbed subscription model.
+
 ## 2026-07-09 — UI-driven query APIs: catalog, teacher dashboard, sessions/history, roles
 
 **Author:** AI (Claude)
@@ -45,13 +129,13 @@ allowlist → clean 422). New/changed:
 - **Seed:** `app/seed.py` (`make seed`, idempotent) mirrors the frontend mock data
   (6 subjects, 6 fraction concepts, Maya/Priya/Leo/Sam/Rohan + teacher, sessions,
   one open escalation). Demo password `password123`.
-**Files:** `app/core/{query,display}.py`; `app/features/catalog/**`;
-`app/features/teacher/**`; `app/features/tutor/{models,schemas,service,routes,reads}.py`;
-`app/features/auth/{models,schemas,service,dependencies,routes}.py`; `app/seed.py`;
-`app/api/router.py`; `app/main.py`; `conftest.py`; `Makefile`; `pyproject.toml`.
-**Tests:** `make test` green (55 passed — new catalog/teacher/tutor-reads/auth-role
-suites + existing); ruff clean. Live end-to-end verified against SQLite through the
-Next.js BFF (login→cookie→proxy), incl. role guard 403 and cross-student 404.
+  **Files:** `app/core/{query,display}.py`; `app/features/catalog/**`;
+  `app/features/teacher/**`; `app/features/tutor/{models,schemas,service,routes,reads}.py`;
+  `app/features/auth/{models,schemas,service,dependencies,routes}.py`; `app/seed.py`;
+  `app/api/router.py`; `app/main.py`; `conftest.py`; `Makefile`; `pyproject.toml`.
+  **Tests:** `make test` green (55 passed — new catalog/teacher/tutor-reads/auth-role
+  suites + existing); ruff clean. Live end-to-end verified against SQLite through the
+  Next.js BFF (login→cookie→proxy), incl. role guard 403 and cross-student 404.
 
 ## 2026-07-09 — Switch auth to HTTP Bearer (fix Swagger "Authorize")
 

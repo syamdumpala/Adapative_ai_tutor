@@ -12,11 +12,12 @@ from app.features.tutor.graph import trace
 from app.features.tutor.graph.graph import tutor_graph
 from app.features.tutor.graph.state import detect_distress, new_state, serialize
 from app.features.tutor.models import ConversationHistory, TutorSession
-from app.features.tutor.repository import get_conversation, get_session
+from app.features.tutor.repository import get_conversation, get_session, list_sessions
 from app.features.tutor.schemas import (
     AskResponse,
     ConversationMessage,
     ConversationResponse,
+    SessionIndexItem,
 )
 
 logger = logging.getLogger("app.tutor")
@@ -231,3 +232,18 @@ async def get_session_conversation(
         status=session.status,
         messages=messages,
     )
+
+
+async def list_student_sessions(db: AsyncSession, student: Student) -> list[SessionIndexItem]:
+    """Return the student's sessions (most recent first) for a conversation index."""
+    sessions = await list_sessions(db, student.id)
+    return [
+        SessionIndexItem(
+            session_id=s.id,
+            initial_question=s.concept,
+            status=s.status,
+            subject=(s.state or {}).get("subject"),
+            created_at=s.created_at.isoformat() if s.created_at else None,
+        )
+        for s in sessions
+    ]

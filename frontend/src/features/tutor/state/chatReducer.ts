@@ -35,6 +35,15 @@ function userMessage(state: ChatEngineState, text: string): ChatMessage {
   return { id: state.tempId, from: "maya", kind: "text", text };
 }
 
+// A one-off, client-only welcome shown when a fresh chat is opened. It is purely
+// a UX touch — never sent to or stored by the backend.
+const GREETING =
+  "Hi! What would you like to work on today? Ask me anything about this topic — I'll guide you with hints, not just the answer.";
+
+function greetingMessage(): ChatMessage {
+  return { id: 0, from: "tutor", kind: "text", text: GREETING };
+}
+
 type Handlers = {
   [K in ChatAction["type"]]: (
     state: ChatEngineState,
@@ -56,7 +65,7 @@ const HANDLERS: Handlers = {
     title: "",
     status: "draft",
     locked: false,
-    messages: [],
+    messages: [greetingMessage()],
     typing: false,
     hintRung: 0,
     error: null,

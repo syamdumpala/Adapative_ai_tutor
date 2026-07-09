@@ -136,3 +136,14 @@ class ConversationResponse(BaseModel):
     subject: str | None = None
     status: str
     messages: list[ConversationMessage]
+
+
+class SessionIndexItem(BaseModel):
+    """Compact session row for the conversation index (distinct from the rich
+    `SessionSummary` above used by the chat rail)."""
+
+    session_id: str
+    initial_question: str
+    subject: str | None = None
+    status: str
+    created_at: str | None = None

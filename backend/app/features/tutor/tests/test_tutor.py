@@ -195,6 +195,8 @@ async def test_sessions_list_and_conversation_isolation(client, mock_llm):
     headers = await _auth_header(client)
     sid, _ = await _reach_first_hint(client, headers)
 
+    # /tutor/sessions returns the paginated chat rail (Page envelope); the newly
+    # created session must appear in it.
     sessions = (await client.get("/tutor/sessions", headers=headers)).json()
     assert any(s["id"] == sid for s in sessions["items"])
 
