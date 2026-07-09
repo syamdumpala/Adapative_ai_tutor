@@ -4,6 +4,55 @@ Append-only changelog. Newest first.
 
 ---
 
+## 2026-07-10 — Student analytics page (performance graphs)
+
+Added a dedicated **"My progress"** page for the signed-in student that charts
+their performance overall and per topic, using Recharts.
+
+- **New surface** — `student/analytics/StudentAnalytics` renders a back-to-home
+  header + a `SegmentedControl` toggle between two panels:
+  - **Overall** (`OverviewPanel`) — the `/me/performance` KPI tiles, a hero
+    mastery-vs-confidence trend line over every completed session (coral dots
+    flag misconceptions), a misconception-by-type donut, and a mastery-vs-
+    confidence-by-subject grouped bar. Data from `GET /me/analytics` +
+    `GET /me/performance`.
+  - **By topic** (`TopicsPanel`) — topic mastery ranking, per-topic mastery-vs-
+    confidence, effort-vs-mastery bubble scatter, understanding-mix donut, and a
+    "review due" rail. Data from the new `GET /me/topics`.
+- **Charts** — one small file per chart under `analytics/charts/` plus a shared
+  `chartTheme.ts` (design-token hex, tone/understanding/mastery → colour),
+  `ChartCard` wrapper (title + empty state), and `format.ts` helpers. Grouped
+  mastery/confidence bars are shared via `GroupedBars` (subject + topic reuse).
+- **Data layer** — `api/student.ts` gains `AnalyticsDTO` / `TopicAnalyticsDTO`
+  + `fetchAnalytics` / `fetchTopicAnalytics`; `hooks/useAnalytics.ts` exposes
+  `useAnalytics` / `useTopicAnalytics` (mount-fetch, loading/error state).
+- **Navigation** — `useTutorShell` now owns a `studentView` (`home | analytics`)
+  with `openAnalytics` / `backToHome`; reached via a new "My progress" item in
+  the account `ProfileMenu`. Threaded through `StudentArea → StudentHome →
+  TopicGrid → ProfileMenu`.
+- **Dependency** — added `recharts` (SVG, no `eval` → passes the CSP).
+- **Verify** — `npm run check` (typecheck + lint + Prettier) and `next build`
+  both green.
+
+## 2026-07-10 — Student home: searchable topic grid
+
+Added a search box to the student home so learners can filter the topic catalog
+instead of scanning the whole grid.
+
+- **`student/TopicGrid`** now owns a `query` state and renders the shared
+  `SearchInput` between the greeting header and the card grid. Matching is
+  case-insensitive over each topic's `name` + `desc` (`matchesQuery`), memoised
+  over the live catalog from `useTopics`; an empty query shows the full grid.
+- **No matches** → the shared `EmptyState` ("No topics match …") replaces the
+  grid so the screen never goes blank mid-search.
+- **Decomposition** — to stay under the file/function limits, the header and the
+  results grid were extracted into `TopicGridHeader` and `TopicResults`
+  sub-components, and the file is now `"use client"` (it owns state).
+- **Scope** — purely client-side over the already-fetched catalog (the student
+  topic list is small); the backend `/subjects` contract is untouched.
+- **Verify** — `npm run check` (typecheck + lint + Prettier) and `next build`
+  both green.
+
 ## 2026-07-10 — Teacher dashboard chrome: logo-home, back button, account menu
 
 Reworked the teacher toolbar so navigation and account actions read like a real

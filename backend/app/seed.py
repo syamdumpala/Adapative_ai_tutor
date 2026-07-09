@@ -12,9 +12,10 @@ Demo credentials (all): password ``password123``.
 
 import asyncio
 import logging
+import math
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal, Base, engine
@@ -27,6 +28,7 @@ from app.features.catalog.models import Concept, Subject
 from app.features.tutor.models import (
     ConversationHistory,
     Misconception,
+    SessionAnalytics,
     StudentConceptState,
     StudentProfile,
     TeacherEscalation,
@@ -276,6 +278,84 @@ MAYA_SESSIONS = [
 _CHAT_TO_ENGINE = {"completed": "completed", "pending": "active"}
 
 
+# --- Learning-analytics demo series -------------------------------------------
+# One backdated, completed session (+ analytics snapshot) per point, so the
+# student "My progress" charts (mastery/confidence trend, misconception donut,
+# per-subject bars) render against real DB rows instead of an empty state.
+#
+# handle -> shape: n points, mastery start/end, confidence lead (over-confidence),
+# the subjects the points cycle through, and how many early points carry a
+# misconception. The curve rises from m0→m1 with a small deterministic wobble.
+ANALYTICS_SHAPE = {
+    "maya": {
+        "n": 12,
+        "m0": 0.30,
+        "m1": 0.86,
+        "lead": 0.10,
+        "subjects": ["1", "1", "2"],
+        "miscon": 3,
+    },
+    "priya": {"n": 10, "m0": 0.55, "m1": 0.84, "lead": 0.03, "subjects": ["1", "2"], "miscon": 2},
+    "leo": {"n": 9, "m0": 0.40, "m1": 0.73, "lead": 0.06, "subjects": ["1", "1", "5"], "miscon": 3},
+    "sam": {"n": 10, "m0": 0.30, "m1": 0.52, "lead": 0.18, "subjects": ["1", "3"], "miscon": 4},
+    "rohan": {"n": 11, "m0": 0.15, "m1": 0.34, "lead": 0.22, "subjects": ["1"], "miscon": 5},
+}
+
+# Misconception categories cycled into the early points (drive the donut).
+MISCON_POOL = [
+    "Whole-number bias",
+    "Denominator confusion",
+    "Equal-parts error",
+    "Gap-counting",
+]
+
+# Per-subject session titles the backdated points cycle through (for the chat rail).
+ANALYTIC_TITLES = {
+    "1": [
+        "Adding 4/5 and 3/5",
+        "Comparing 3/4 and 2/3",
+        "Simplifying 6/8",
+        "Equivalent fractions",
+        "Fractions on a number line",
+        "Subtracting 5/6 − 1/3",
+    ],
+    "2": ["Rounding 3.47", "Ordering decimals", "Adding 1.4 + 0.75", "Decimal place value"],
+    "3": ["25% of 80", "A 20% discount", "Percent to a fraction"],
+    "5": ["Angles on a line", "Area of a rectangle", "Perimeter of an L-shape"],
+}
+
+_DAYS_BETWEEN_POINTS = 4
+
+
+def _clamp01(value: float) -> float:
+    return max(0.05, min(0.98, value))
+
+
+def _streak_for(understanding: str, attempts: int) -> int:
+    """A plausible practice streak from how well a topic is grasped."""
+    base = {"yes": 4, "partial": 2, "no": 0}.get(understanding, 0)
+    return base + (attempts if understanding == "yes" else 0)
+
+
+def _analytics_series(shape: dict) -> list[tuple[str, float, float, str | None]]:
+    """(subject_id, mastery, confidence, misconception_category) per backdated point."""
+    n = shape["n"]
+    subjects = shape["subjects"]
+    points: list[tuple[str, float, float, str | None]] = []
+    for i in range(n):
+        frac = i / max(1, n - 1)
+        mastery = _clamp01(
+            shape["m0"] + (shape["m1"] - shape["m0"]) * frac + 0.04 * math.sin(i * 1.7)
+        )
+        # Confidence leads mastery early (over-confidence) and converges as they learn.
+        confidence = _clamp01(mastery + shape["lead"] * (1 - frac) + 0.03 * math.cos(i * 1.3))
+        category = MISCON_POOL[i % len(MISCON_POOL)] if i < shape["miscon"] else None
+        points.append(
+            (subjects[i % len(subjects)], round(mastery, 3), round(confidence, 3), category)
+        )
+    return points
+
+
 async def _upsert_catalog(db: AsyncSession) -> None:
     for pos, (sid, name, glyph, tone, desc, meta, is_new) in enumerate(SUBJECTS):
         if await db.get(Subject, sid) is None:
@@ -367,6 +447,7 @@ async def _seed_student(db: AsyncSession, spec: dict) -> None:
                 confidence=mastery,
                 understanding=understanding,
                 attempts=asked,
+                streak=_streak_for(understanding, asked),
                 last_seen=datetime.now(UTC),
                 next_review=review,
             )
@@ -440,11 +521,93 @@ async def _seed_rohan_escalation(db: AsyncSession, student: Student) -> None:
     )
 
 
-async def seed(db: AsyncSession) -> None:
+async def _seed_session_analytics(db: AsyncSession, spec: dict) -> None:
+    """Backdated completed sessions + analytics snapshots for one student's charts.
+
+    Idempotent: skips a student who already has any analytics row, so re-running
+    the seed backfills existing demo accounts without duplicating them.
+    """
+    shape = ANALYTICS_SHAPE.get(spec["handle"])
+    student = await _account_exists(db, spec["email"])
+    if shape is None or student is None:
+        return
+    existing = (
+        await db.execute(
+            select(func.count())
+            .select_from(SessionAnalytics)
+            .where(SessionAnalytics.student_id == student.id)
+        )
+    ).scalar_one()
+    if existing:
+        return
+
+    series = _analytics_series(shape)
+    n = len(series)
+    now = datetime.now(UTC)
+    for i, (subject_id, mastery, confidence, category) in enumerate(series):
+        created = now - timedelta(days=(n - 1 - i) * _DAYS_BETWEEN_POINTS, hours=3)
+        session_id = f"seed_an_{spec['handle']}_{i:02d}"
+        titles = ANALYTIC_TITLES.get(subject_id, ANALYTIC_TITLES["1"])
+        title = titles[i % len(titles)]
+        db.add(
+            TutorSession(
+                id=session_id,
+                student_id=student.id,
+                subject_id=subject_id,
+                concept=title,
+                title=title,
+                status="completed",
+                created_at=created,
+                updated_at=created,
+            )
+        )
+        await db.flush()
+        db.add(
+            ConversationHistory(
+                session_id=session_id,
+                student_id=student.id,
+                role="user",
+                kind="text",
+                content=f"Can you help me with {title.lower()}?",
+                created_at=created,
+            )
+        )
+        db.add(
+            ConversationHistory(
+                session_id=session_id,
+                student_id=student.id,
+                role="assistant",
+                kind="text",
+                content="Nice — you reasoned that out yourself. Great session!",
+                created_at=created,
+            )
+        )
+        db.add(
+            SessionAnalytics(
+                student_id=student.id,
+                session_id=session_id,
+                subject_id=subject_id,
+                mastery=mastery,
+                confidence=confidence,
+                misconception_category=category,
+                created_at=created,
+                updated_at=created,
+            )
+        )
+
+
+async def seed(db: AsyncSession, *, with_analytics: bool = False) -> None:
+    """Seed the demo dataset. `with_analytics` adds the backdated session-analytics
+    series that powers the student "My progress" charts — on by default for the real
+    seed entrypoint (``make seed``), off for the test fixture whose assertions rely on
+    a minimal, fixed number of sessions."""
     await _upsert_catalog(db)
     await _seed_teacher(db)
     for spec in STUDENTS:
         await _seed_student(db, spec)
+    if with_analytics:
+        for spec in STUDENTS:
+            await _seed_session_analytics(db, spec)
     await db.commit()
 
 
@@ -453,7 +616,7 @@ async def main() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     async with AsyncSessionLocal() as db:
-        await seed(db)
+        await seed(db, with_analytics=True)
     await engine.dispose()
     logger.info("Seed complete. Demo login password: %s", DEMO_PASSWORD)
 

@@ -12,6 +12,84 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-07-10 — Demo analytics seed for the student "My progress" charts
+
+**Author:** AI (Claude)
+**Summary:** The overall progress charts read `session_analytics`, which is only
+written on live session completion — so demo accounts had empty charts. Added a
+backdated demo series: `seed._seed_session_analytics` creates, per student, a run
+of completed `TutorSession`s (spaced 4 days apart, oldest→newest) each with a
+short 2-line transcript and a `SessionAnalytics` snapshot following a rising
+mastery curve, confidence that leads early then converges (over-confidence), and
+early misconception categories. Also derives a `streak` for seeded
+`StudentConceptState` rows so the effort-vs-mastery bubbles vary. Seeding is
+**idempotent** (skips a student who already has analytics rows) and **gated**
+behind `seed(..., with_analytics=True)` — on for the real entrypoint
+(`python -m app.seed` / `make seed`), off for the test fixture whose assertions
+count a fixed number of sessions.
+**Files:** Modified `app/seed.py` (`ANALYTICS_SHAPE`, `MISCON_POOL`,
+`ANALYTIC_TITLES`, `_analytics_series`, `_streak_for`, `_seed_session_analytics`,
+`seed(with_analytics=...)`, `main`), `conftest.py` (thread `with_analytics`,
+add `analytics_client` fixture), `app/features/tutor/tests/test_reads.py`
+(integration test). **Tests:** full suite green (62 passed); verified end-to-end
+by running the seed against in-memory SQLite (Maya 12 pts 0.30→0.85 across 2
+subjects; Rohan 11 pts 0.15→0.30 with 5 misconceptions).
+
+---
+
+## 2026-07-10 — Per-topic student analytics endpoint (`GET /me/topics`)
+
+**Author:** AI (Claude)
+**Summary:** Added a student-facing, concept-grain analytics read so the student
+dashboard can chart **per-topic** performance (the existing `/me/analytics` is
+subject-grain only). `GET /me/topics` returns one `TopicAnalyticsPoint` per concept
+the signed-in student has engaged with — `mastery`, `confidence`, `understanding`,
+`attempts`, `streak`, `last_seen`, `next_review`, plus the concept's
+`glyph`/`tone`/`difficulty_band` — ordered by concept position. The read
+(`reads.get_topic_analytics`) is a student-scoped mirror of the teacher's
+`list_student_topics` join (`concepts` × `student_concept_state`); no schema/model
+changes were needed.
+**Files:** Modified `app/features/tutor/{schemas,reads,routes}.py`
+(`TopicAnalyticsPoint`/`TopicAnalyticsResponse`, `get_topic_analytics`,
+`GET /me/topics`), `app/features/tutor/tests/test_reads.py` (two tests), and this
+`architecture/{DIAGRAM,HISTORY}.md`.
+**Tests:** `test_reads.py` green (8/8), incl. the two new `/me/topics` tests
+(own concepts in position order; scoped to the signed-in student). Note: one
+pre-existing uncommitted WIP test (`test_completing_a_session_writes_analytics`)
+fails independently — it posts `subject_id="fractions"` while the seeded Fractions
+subject id is `"1"`, so `subject_name` resolves to `None`; unrelated to this change.
+
+---
+
+## 2026-07-09 — Subject-aware graph state + learning analytics (subject vs mastery vs confidence)
+
+**Author:** AI (Claude)
+**Summary:** Two additions. (1) **Subject in state:** `ask_question` now fetches the
+subject from the `subjects` table by the request's `subject_id`
+(`fetch_subject_name`) and seeds `state["subject"]` in both the new-session and
+existing-session branches, so every graph agent (diagnostic, misconception,
+planner, hint, guard, evaluator) is scoped to the real subject instead of the
+hardcoded `"Maths"` default. Unknown ids fall back gracefully. Note: `subject_id`
+must be a catalog slug (`fractions`, `decimals`, `percentages`, `integers`,
+`geometry`, `ratios`), not a numeric index. (2) **Learning analytics:** new
+`session_analytics` table (one upserted row per session, keyed by `session_id`)
+storing `student_id`, `session_id`, `subject_id`, `mastery`, `confidence`,
+`misconception_category`. Written automatically when a session completes (enters
+history mode) via `record_session_analytics`. New read `GET /me/analytics`
+(`reads.get_analytics`) returns per-subject means (`by_subject`) plus the raw
+per-session `points` — plot-ready for subject vs mastery vs confidence.
+**Files:**
+
+- Modified: `app/features/tutor/service.py` (`fetch_subject_name`,
+  `record_session_analytics`, subject-in-state wiring, analytics write on
+  completion), `app/features/tutor/models.py` (`SessionAnalytics`),
+  `app/features/tutor/schemas.py` (`AnalyticsPoint`, `SubjectAnalytics`,
+  `AnalyticsResponse`), `app/features/tutor/reads.py` (`get_analytics`),
+  `app/features/tutor/routes.py` (`GET /me/analytics`),
+  `app/features/tutor/tests/test_tutor.py` (subject-in-state + analytics tests).
+  **Tests:** `make test` green (59 passed); analytics + subject-flow verified
+  end-to-end against local PostgreSQL.
+
 ## 2026-07-09 — Subject ids are numeric (1..6) instead of slugs
 
 **Author:** AI (Claude)

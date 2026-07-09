@@ -53,8 +53,63 @@ export interface MessageDTO {
   created_at: string;
 }
 
+/** One completed-session snapshot — a single point on the overall trend charts. */
+export interface AnalyticsPointDTO {
+  session_id: string;
+  subject_id: string | null;
+  subject_name: string | null;
+  mastery: number;
+  confidence: number;
+  misconception_category: string | null;
+  created_at: string | null;
+}
+
+/** Per-subject mean mastery & confidence across the subject's sessions. */
+export interface SubjectAnalyticsDTO {
+  subject_id: string | null;
+  subject_name: string | null;
+  mastery: number;
+  confidence: number;
+  sessions: number;
+}
+
+export interface AnalyticsDTO {
+  by_subject: SubjectAnalyticsDTO[];
+  points: AnalyticsPointDTO[];
+}
+
+/** One concept the student has engaged with — a point on the per-topic charts. */
+export interface TopicAnalyticsDTO {
+  concept_id: string;
+  concept_name: string;
+  subject_id: string | null;
+  subject_name: string | null;
+  glyph: string;
+  tone: string;
+  difficulty_band: string;
+  mastery: number;
+  confidence: number;
+  understanding: string;
+  attempts: number;
+  streak: number;
+  last_seen: string | null;
+  next_review: string | null;
+}
+
+export interface TopicAnalyticsResponseDTO {
+  topics: TopicAnalyticsDTO[];
+}
+
 export function fetchProfile(): Promise<ProfileDTO> {
   return apiGet<ProfileDTO>("/me/profile");
+}
+
+export function fetchAnalytics(): Promise<AnalyticsDTO> {
+  return apiGet<AnalyticsDTO>("/me/analytics");
+}
+
+export function fetchTopicAnalytics(): Promise<TopicAnalyticsResponseDTO> {
+  return apiGet<TopicAnalyticsResponseDTO>("/me/topics");
 }
 
 export function fetchPerformance(): Promise<PerformanceDTO> {

@@ -147,3 +147,65 @@ class SessionIndexItem(BaseModel):
     subject: str | None = None
     status: str
     created_at: str | None = None
+
+
+# --- Learning analytics (subject vs mastery vs confidence) --------------------
+
+
+class AnalyticsPoint(BaseModel):
+    """One completed-session snapshot — a single data point for the charts."""
+
+    session_id: str
+    subject_id: str | None = None
+    subject_name: str | None = None
+    mastery: float
+    confidence: float
+    misconception_category: str | None = None
+    created_at: str | None = None
+
+
+class SubjectAnalytics(BaseModel):
+    """Per-subject aggregate (mean mastery & confidence across the subject's sessions)."""
+
+    subject_id: str | None = None
+    subject_name: str | None = None
+    mastery: float
+    confidence: float
+    sessions: int
+
+
+class AnalyticsResponse(BaseModel):
+    """Plot-ready analytics: per-subject aggregates plus the raw per-session points."""
+
+    by_subject: list[SubjectAnalytics]
+    points: list[AnalyticsPoint]
+
+
+# --- Per-topic learning analytics (concept-grain, student's own) --------------
+
+
+class TopicAnalyticsPoint(BaseModel):
+    """One concept (topic) the student has engaged with — a data point for the
+    per-topic charts (mastery ranking, mastery-vs-confidence, understanding, effort)."""
+
+    concept_id: str
+    concept_name: str
+    subject_id: str | None = None
+    subject_name: str | None = None
+    glyph: str = ""
+    tone: str = "green"  # green | violet | amber | coral
+    difficulty_band: str = "med"  # easy | med | hard
+    mastery: float  # 0..1
+    confidence: float  # 0..1
+    understanding: str  # yes | partial | no
+    attempts: int  # "asked" count
+    streak: int
+    last_seen: str | None = None
+    next_review: str | None = None
+
+
+class TopicAnalyticsResponse(BaseModel):
+    """Plot-ready per-topic analytics for one student: every concept the student has
+    engaged with, ordered by the concept's position within its subject."""
+
+    topics: list[TopicAnalyticsPoint]

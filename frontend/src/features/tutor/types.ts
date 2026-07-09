@@ -3,6 +3,7 @@ import type { Tone } from "@/lib/tones";
 export type Role = "student" | "teacher";
 export type ChatStatus = "draft" | "pending" | "completed";
 export type TeacherScreen = "home" | "topic" | "student" | "catalog";
+export type StudentView = "home" | "analytics";
 export type ModalKind = "profile" | "performance" | null;
 
 export type MessageSender = "maya" | "tutor";

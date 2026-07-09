@@ -1,6 +1,6 @@
 # Frontend Status
 
-_Last updated: 2026-07-09_
+_Last updated: 2026-07-10_
 
 ## Summary
 
@@ -30,7 +30,8 @@ Claude Design handoff on top of a reusable component library.
 | Design tokens       | ✅     | `src/app/globals.css` (Tailwind `@theme`) + `next/font`     |
 | Component library   | ✅     | `src/components/` — 15 primitives + `README.md` catalog     |
 | Shared hooks / libs | ✅     | `useResponsive`, `useToast`, `tones`, `cn`, `backdrop`      |
-| Tutor · student     | ✅     | Home (chats + topics), guided chat, hint ladder, quiz       |
+| Tutor · student     | ✅     | Home (chats + searchable topics), guided chat, hint ladder, quiz |
+| Tutor · analytics   | ✅     | "My progress" page — overall + per-topic performance graphs (Recharts) |
 | Tutor · teacher     | ✅     | Topics + students panels, drill-downs, topic catalog + create |
 | Auth (Login)        | ✅     | Real sign-in / sign-up workflow + validation (API seam only) |
 | Routes              | ✅     | `/` (`?role=`), `/login` (`?mode`/`?role`)                  |

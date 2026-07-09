@@ -21,7 +21,7 @@ from app.main import app
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
 
-async def _make_client(seed_demo: bool):
+async def _make_client(seed_demo: bool, with_analytics: bool = False):
     engine = create_async_engine(
         TEST_DB_URL,
         connect_args={"check_same_thread": False},
@@ -36,7 +36,7 @@ async def _make_client(seed_demo: bool):
         from app.seed import seed  # imported lazily so plain tests stay fast
 
         async with TestSession() as session:
-            await seed(session)
+            await seed(session, with_analytics=with_analytics)
 
     async def override_get_db():
         async with TestSession() as session:
@@ -60,6 +60,17 @@ async def client():
 async def seeded_client():
     """A client backed by the demo seed dataset (subjects, students, sessions, ...)."""
     engine, transport = await _make_client(seed_demo=True)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+    app.dependency_overrides.clear()
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def analytics_client():
+    """Seeded client that also includes the backdated session-analytics demo series
+    (the data behind the student "My progress" charts)."""
+    engine, transport = await _make_client(seed_demo=True, with_analytics=True)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()

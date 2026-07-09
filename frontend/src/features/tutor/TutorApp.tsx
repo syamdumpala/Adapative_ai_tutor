@@ -41,8 +41,11 @@ function AppBody({
       name={studentName}
       initials={shell.initials}
       bp={shell.bp}
+      studentView={shell.studentView}
       onProfile={() => shell.openModal("profile")}
       onPerformance={() => shell.openModal("performance")}
+      onAnalytics={shell.openAnalytics}
+      onBackHome={shell.backToHome}
       onLogout={shell.onLogout}
     />
   );

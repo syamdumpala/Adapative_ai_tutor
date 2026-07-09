@@ -41,9 +41,13 @@ Status legend: ✅ done · 🟡 scaffold/partial · 🚧 in progress · ⛔ depr
 - **Responsibility:** the Mira adaptive-tutor experience.
   - `TutorApp.tsx` + `Topbar.tsx` + `AccountModal.tsx` + `hooks/useTutorShell.ts`
     — app shell, toast, and the shared profile/performance modal (both roles).
-  - `student/` — home (`StudentHome`, `ChatsSidebar`, `TopicGrid`, `TopicCard`,
-    `ProfileMenu`), chat (`ChatView`, `ChatHeader`, `Composer`, banners), and
-    `messages/` (diagnosis, visual hint, worked example, quiz, revision, typing).
+  - `student/` — home (`StudentHome`, `ChatsSidebar`, `TopicGrid` — searchable
+    via the shared `SearchInput`, `TopicCard`, `ProfileMenu`), chat (`ChatView`,
+    `ChatHeader`, `Composer`, banners),
+    `messages/` (diagnosis, visual hint, worked example, quiz, revision, typing),
+    and `analytics/` — the "My progress" page (`StudentAnalytics` + `OverviewPanel`
+    / `TopicsPanel`, `charts/` Recharts components, `chartTheme.ts`, `ChartCard`)
+    fed by `hooks/useAnalytics.ts` off `GET /me/analytics` + `GET /me/topics`.
   - `teacher/` — `TeacherDashboard`, `TeacherHome` (`TopicPanel`,
     `StudentPanel`), `TopicDetail`, `StudentDetail`, `TeacherToolbar` (back-nav
     + `TeacherAccountMenu`), and the catalog manager `TopicCatalog` +

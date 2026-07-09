@@ -11,6 +11,7 @@ interface StudentHomeProps {
   bp: Breakpoint;
   onProfile: () => void;
   onPerformance: () => void;
+  onAnalytics: () => void;
   onLogout: () => void;
 }
 
@@ -63,6 +64,7 @@ export function StudentHome({
   bp,
   onProfile,
   onPerformance,
+  onAnalytics,
   onLogout,
 }: StudentHomeProps) {
   const mobile = bp === "mobile";
@@ -74,6 +76,7 @@ export function StudentHome({
       onOpenTopic={chat.openTopic}
       onProfile={onProfile}
       onPerformance={onPerformance}
+      onAnalytics={onAnalytics}
       onLogout={onLogout}
     />
   );
