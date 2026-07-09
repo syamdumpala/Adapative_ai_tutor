@@ -9,6 +9,9 @@ environments without edits:
   are spent. Set ``LLM_PROVIDER=anthropic`` + ``LLM_AUTH_MODE=subscription``.
 * **Production** — a first-party API key for Anthropic, OpenAI, or Google Gemini,
   selected by ``LLM_PROVIDER`` (``LLM_AUTH_MODE`` is ignored for openai/google).
+* **Local** — an OpenAI-compatible model server (LM Studio, Ollama, vLLM,
+  llama.cpp, …). Set ``LLM_PROVIDER=local`` + ``LOCAL_BASE_URL`` (e.g.
+  ``http://localhost:1234/v1``); reuses the OpenAI client, so no extra dependency.
 
 The model id is always ``LLM_MODEL`` and applies in subscription mode too, so the
 same token can address ``claude-sonnet-5`` or ``claude-opus-4-8`` per requirement.
@@ -62,6 +65,8 @@ def llm_is_configured() -> bool:
         return bool(settings.openai_api_key)
     if provider == "google":
         return bool(settings.google_api_key)
+    if provider == "local":
+        return bool(settings.local_base_url)
     return False
 
 
@@ -70,6 +75,8 @@ def llm_config_detail() -> str:
     provider = _provider()
     if provider == "anthropic" and _auth_mode() == "subscription":
         return "CLAUDE_CODE_OAUTH_TOKEN is not set (LLM_AUTH_MODE=subscription)"
+    if provider == "local":
+        return "LOCAL_BASE_URL is not set (LLM_PROVIDER=local), e.g. http://localhost:1234/v1"
     env_key = {
         "anthropic": "ANTHROPIC_API_KEY",
         "openai": "OPENAI_API_KEY",
@@ -92,7 +99,11 @@ def get_chat_model(model: str | None = None) -> BaseChatModel:
         return _build_openai(model)
     if provider == "google":
         return _build_google(model)
-    raise LLMConfigError(f"Unknown LLM_PROVIDER={provider!r}; expected anthropic | openai | google")
+    if provider == "local":
+        return _build_local(model)
+    raise LLMConfigError(
+        f"Unknown LLM_PROVIDER={provider!r}; expected anthropic | openai | google | local"
+    )
 
 
 def _build_anthropic(model: str | None) -> BaseChatModel:
@@ -105,6 +116,7 @@ def _build_anthropic(model: str | None) -> BaseChatModel:
         api_key=settings.anthropic_api_key,
         max_tokens=_MAX_TOKENS,
         timeout=_TIMEOUT,
+        effort=0,  # default is 0.5; 0.0 = faster, 1.0 = more accurate
     )
 
 
@@ -116,6 +128,28 @@ def _build_openai(model: str | None) -> BaseChatModel:
     return ChatOpenAI(
         model=model or "gpt-4o",
         api_key=settings.openai_api_key,
+        max_tokens=_MAX_TOKENS,
+        timeout=_TIMEOUT,
+    )
+
+
+def _build_local(model: str | None) -> BaseChatModel:
+    """Talk to a local OpenAI-compatible server (LM Studio / Ollama / vLLM / …).
+
+    These runtimes all expose ``/v1/chat/completions``, so we reuse the OpenAI
+    client (already a dependency) with ``base_url`` pointed at the local server and
+    a placeholder key — no local runtime validates it.
+    """
+    if not settings.local_base_url:
+        raise LLMConfigError(
+            "LOCAL_BASE_URL is not set (LLM_PROVIDER=local), e.g. http://localhost:1234/v1"
+        )
+    from langchain_openai import ChatOpenAI
+
+    return ChatOpenAI(
+        model=model or "local-model",
+        base_url=settings.local_base_url,
+        api_key=settings.local_api_key or "not-needed",
         max_tokens=_MAX_TOKENS,
         timeout=_TIMEOUT,
     )

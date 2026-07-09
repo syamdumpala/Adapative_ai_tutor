@@ -1,26 +1,223 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Mira design tokens.
+ *
+ * Ported verbatim from the Claude Design prototype (`Mira Tutor.dc.html`) so the
+ * whole app shares one source of truth for colour, type, radius, shadow and
+ * motion. Consume these through Tailwind utilities (`bg-card`, `text-ink2`,
+ * `rounded-lg`, `shadow-float`, `font-display`, `animate-fade-up`, …) rather
+ * than hard-coding hex values in components.
+ */
+@theme {
+  /* Surfaces & ink */
+  --color-paper: #faf6ee;
+  --color-paper2: #f4eddf;
+  --color-wash: #efe7d7;
+  --color-card: #ffffff;
+  --color-ink: #232019;
+  --color-ink2: #5e574b;
+  --color-ink3: #94897a;
+  --color-line: #e7ddcb;
+  --color-line2: #efe7d8;
+
+  /* Accents (base / deep / soft tints) */
+  --color-green: #12805c;
+  --color-green-d: #0b6244;
+  --color-green-s: #dceee3;
+  --color-green-s2: #eaf5ee;
+  --color-coral: #e9603c;
+  --color-coral-d: #c24726;
+  --color-coral-s: #fadfd5;
+  --color-amber: #db960f;
+  --color-amber-s: #f7eac6;
+  --color-violet: #6c57de;
+  --color-violet-d: #4e3cb8;
+  --color-violet-s: #e8e3fb;
+
+  /* Radius scale (prototype: r-sm 10 · r 15 · r-lg 22 · r-xl 30) */
+  --radius-sm: 10px;
+  --radius-md: 15px;
+  --radius-lg: 22px;
+  --radius-xl: 30px;
+
+  /* Elevation */
+  --shadow-soft:
+    0 1px 2px rgba(35, 32, 25, 0.05), 0 4px 12px -8px rgba(35, 32, 25, 0.16);
+  --shadow-float:
+    0 1px 2px rgba(35, 32, 25, 0.05), 0 12px 30px -16px rgba(35, 32, 25, 0.22);
+  --shadow-pop:
+    0 2px 4px rgba(35, 32, 25, 0.06), 0 30px 70px -30px rgba(35, 32, 25, 0.34);
+
+  /* Motion */
+  --animate-fade-up: fadeUp 0.5s both;
+  --animate-fade-in: fadeIn 0.2s both;
+  --animate-msg-in: msgIn 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  --animate-pop: pop 0.3s both;
+  --animate-spin-in: spinIn 0.5s both;
+  --animate-pulse-amber: pulseAmber 2.2s infinite;
 }
 
+/*
+ * Fonts come from `next/font` (self-hosted at build time — no external request,
+ * so the CSP `font-src 'self'` stays intact). The `--font-*` variables are set
+ * on <html> in `layout.tsx`; `@theme inline` wires them to Tailwind utilities.
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-bricolage), ui-sans-serif, sans-serif;
+  --font-body: var(--font-hanken), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-space-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  p {
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--color-green-s);
+    color: var(--color-green-d);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Thin, paper-toned scrollbars for scrolling regions. */
+.scrolly {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+.scrolly::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+.scrolly::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 20px;
+  border: 3px solid var(--color-paper);
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes msgIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pop {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes growX {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes typing {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+@keyframes pulseAmber {
+  0% {
+    box-shadow: 0 0 0 0 rgba(219, 150, 15, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(219, 150, 15, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(219, 150, 15, 0);
+  }
+}
+@keyframes spinIn {
+  from {
+    transform: rotate(-8deg) scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes burst {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

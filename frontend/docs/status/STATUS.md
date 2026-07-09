@@ -1,12 +1,14 @@
 # Frontend Status
 
-_Last updated: 2026-07-08_
+_Last updated: 2026-07-09_
 
 ## Summary
 
-The frontend is a freshly-scaffolded Next.js 16 App Router app. The focus so far
-has been **engineering guardrails** (linting, formatting, type safety, security,
-pre-commit hooks) and the **documentation system**, not product features.
+The frontend is a Next.js 16 App Router app with the engineering guardrails
+(linting, formatting, type safety, security headers, pre-commit hooks) and the
+documentation system in place, **plus the first product surface**: the **Mira**
+adaptive-tutor experience (student + teacher) and a Login screen, built from the
+Claude Design handoff on top of a reusable component library.
 
 ## Tooling & guardrails — ✅ in place
 
@@ -18,28 +20,43 @@ pre-commit hooks) and the **documentation system**, not product features.
 | TypeScript strictness | ✅     | `strict` + extra strict flags in `tsconfig.json`             |
 | Security headers/CSP  | ✅     | `next.config.ts` (`headers()`), applied to all routes        |
 | Env/secret guardrails | ✅     | `.env.example`, `NEXT_PUBLIC_` documented, `.env*` ignored   |
-| Husky + lint-staged   | ✅     | **Root** `../.husky/pre-commit`, path-gated: frontend (lint-staged + typecheck) and/or backend (pre-commit framework) |
+| Husky + lint-staged   | ✅     | **Root** `../.husky/pre-commit`, path-gated                  |
 | Docs system           | ✅     | `docs/` + `RULES.md`                                          |
 
-## Application surface — 🟡 scaffold only
+## Application surface — ✅ Mira Tutor + Login
 
-| Module      | Status | Notes                                            |
-| ----------- | ------ | ------------------------------------------------ |
-| App shell   | 🟡     | `src/app/layout.tsx`, minimal `src/app/page.tsx` |
-| Global CSS  | 🟡     | `src/app/globals.css` (Tailwind 4)               |
+| Module              | Status | Notes                                                       |
+| ------------------- | ------ | ----------------------------------------------------------- |
+| Design tokens       | ✅     | `src/app/globals.css` (Tailwind `@theme`) + `next/font`     |
+| Component library   | ✅     | `src/components/` — 15 primitives + `README.md` catalog     |
+| Shared hooks / libs | ✅     | `useResponsive`, `useToast`, `tones`, `cn`, `backdrop`      |
+| Tutor · student     | ✅     | Home (chats + subjects), guided chat, hint ladder, quiz     |
+| Tutor · teacher     | ✅     | Topics + students panels, topic & student drill-downs       |
+| Auth (Login)        | ✅     | Real sign-in / sign-up workflow + validation (API seam only) |
+| Routes              | ✅     | `/` (`?role=`), `/login` (`?mode`/`?role`)                  |
 
-See [`../modules/MODULES.md`](../modules/MODULES.md) for the module registry.
+See [`../modules/MODULES.md`](../modules/MODULES.md) for the module registry and
+[`../../src/components/README.md`](../../src/components/README.md) for the
+component catalog.
 
 ## In progress / next up
 
-- Product features (none built yet).
-- Backend API integration (via `NEXT_PUBLIC_API_BASE_URL`, ideally through a
-  server-side route to keep secrets off the client).
+- Backend API integration — the tutor is currently a **self-contained demo**
+  (seeded data + scripted dialogue in `src/features/tutor/data/`). Real chat,
+  diagnosis and analytics should move behind a server-side route/proxy so
+  backend secrets never reach the client.
+- **Wire the auth API** — the sign-in / sign-up workflow, validation and states
+  are complete; only the network calls in `src/features/auth/api.ts` remain
+  (fill in the `TODO(api)` seams against a server-side route handler). Then add
+  session persistence so the tutor resolves role from the session rather than
+  the `?role=` query shim.
 
 ## Known gaps / TODO
 
 - No test setup yet (unit/component/e2e).
 - No CI pipeline wired to run `npm run check` on PRs.
-- CSP currently allows `'unsafe-inline'` for scripts/styles (required for
-  Next.js hydration without nonces). Nonce-based hardening path is documented in
+- CSP still allows `'unsafe-inline'` for scripts/styles (nonce-free strategy for
+  static rendering); hardening path documented in
   [`../security/SECURITY.md`](../security/SECURITY.md).
+- The demo drives the guided conversation via suggested-reply buttons; the
+  free-text composer echoes the message but has no scripted response.

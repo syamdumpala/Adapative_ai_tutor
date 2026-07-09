@@ -44,7 +44,7 @@ Configured in [`eslint.config.mjs`](./eslint.config.mjs). Tier: **Balanced**.
 
 | Rule                     | Limit | Meaning                                      |
 | ------------------------ | ----- | -------------------------------------------- |
-| `max-lines`              | 300   | Max lines per file (blanks/comments skipped) |
+| `max-lines`              | 200   | Max lines per file (blanks/comments skipped) |
 | `max-lines-per-function` | 50    | Max lines per function                       |
 | `complexity`             | 10    | Max cyclomatic complexity                    |
 | `max-depth`              | 4     | Max nested block depth                       |

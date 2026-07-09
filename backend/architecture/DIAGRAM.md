@@ -29,7 +29,7 @@ flowchart TD
 
     AuthModel --> DB[(PostgreSQL)]
     TutorModel --> DB
-    LLM --> Providers([Claude subscription ·<br/>Anthropic · OpenAI · Gemini])
+    LLM --> Providers([Claude subscription ·<br/>Anthropic · OpenAI · Gemini ·<br/>Local OpenAI-compatible])
 ```
 
 ## Request lifecycle — POST /tutor/ask

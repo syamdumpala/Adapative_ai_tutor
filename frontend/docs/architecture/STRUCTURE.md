@@ -59,7 +59,7 @@ Configured in [`../../eslint.config.mjs`](../../eslint.config.mjs), applied to
 
 | Rule                     | Limit | Why                                                    |
 | ------------------------ | ----- | ------------------------------------------------------ |
-| `max-lines`              | 300   | Files over ~300 lines usually do too much; split them. |
+| `max-lines`              | 200   | Files over ~200 lines usually do too much; split them. |
 | `max-lines-per-function` | 50    | Long functions/components are hard to test & read.     |
 | `complexity`             | 10    | Caps branching; high complexity hides bugs.            |
 | `max-depth`              | 4     | Deep nesting → extract functions/early returns.        |

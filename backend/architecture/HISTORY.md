@@ -12,6 +12,42 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-07-09 — Switch auth to HTTP Bearer (fix Swagger "Authorize")
+**Author:** AI (Claude)
+**Summary:** Replaced the `OAuth2PasswordBearer(tokenUrl="/auth/login")` scheme with
+`HTTPBearer`. The OAuth2 password flow made Swagger POST a form (`username`/`password`)
+to `/auth/login`, but that route reads a JSON body, so "Authorize" always failed with
+422. With `HTTPBearer`, Swagger's Authorize dialog is a single field: log in via
+`/auth/login`, paste the returned `access_token`. JSON login is unchanged (frontend
+unaffected). Used `auto_error=False` and an explicit `None` check so a missing/malformed
+header still returns **401** (HTTPBearer's default is 403), preserving existing behavior
+and tests.
+**Files:** Modified `app/features/auth/dependencies.py`.
+**Tests:** `pytest` green (16 passed — `test_me_requires_auth` / `test_ask_requires_auth`
+still assert 401); `ruff check` clean.
+
+## 2026-07-09 — Add local LLM provider (OpenAI-compatible: LM Studio / Ollama / vLLM)
+**Author:** AI (Claude)
+**Summary:** Extended the provider factory with a fourth option, `LLM_PROVIDER=local`,
+so the tutor can run entirely against a self-hosted model server. LM Studio, Ollama,
+vLLM, llama.cpp, etc. all expose an OpenAI-compatible `/v1/chat/completions` endpoint,
+so the new `_build_local` builder reuses the existing `langchain-openai` `ChatOpenAI`
+client with `base_url=LOCAL_BASE_URL` and a placeholder key — **no new dependency**.
+Config gained `local_base_url` / `local_api_key`; `llm_is_configured()` and
+`llm_config_detail()` treat `local` as configured once `LOCAL_BASE_URL` is set (no real
+key required). The pipeline, routes, and 503 gate are unchanged — the factory still
+returns a LangChain `BaseChatModel`. Switching to a local model is a pure `.env` change.
+**Files:**
+- Modified: `app/core/llm.py` (docstring + `_build_local` + local branch in
+  `get_chat_model` / `llm_is_configured` / `llm_config_detail`),
+  `app/core/config.py` (`local_base_url`, `local_api_key`), `.env.example`
+  (local provider section + LM Studio/Ollama/vLLM examples, Docker note),
+  `architecture/{DIAGRAM,STRUCTURE}.md`.
+- Added: `app/core/tests/{__init__.py,test_llm.py}` (gate + local-builder unit tests).
+**Tests:** `pytest` green (16 passed, incl. 5 new `test_llm.py`); `ruff check` clean.
+Builder verified to construct a `ChatOpenAI` without any network call; a live local
+server was not exercised here (no LM Studio/Ollama running in this environment).
+
 ## 2026-07-08 — Configurable LLM provider (subscription in dev, API keys in prod)
 **Author:** AI (Claude)
 **Summary:** Decoupled the tutoring pipeline from a single hard-wired Anthropic API

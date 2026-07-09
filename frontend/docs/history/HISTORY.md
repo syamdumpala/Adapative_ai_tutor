@@ -4,6 +4,104 @@ Append-only changelog. Newest first.
 
 ---
 
+## 2026-07-09 — Fix `next dev` "Manifest file is empty" (pin Turbopack root)
+
+`npm run dev` 500'd with `Error: Manifest file is empty`. Cause: Next inferred
+the **monorepo root** as the workspace root (it sees the root Husky
+`package-lock.json` above `frontend/`), so Turbopack resolved its build manifest
+in the wrong place.
+
+- Set `turbopack: { root: process.cwd() }` in `next.config.ts` to pin the app
+  root to `frontend/` (npm scripts run from there). This also silences the
+  "inferred your workspace root" warning.
+- Cleared the stale `.next` cache (left over from repeated `next build` runs).
+- Verified: fresh `next dev` serves `/`, `/?role=teacher`, `/login` and
+  `/login?mode=signup` at 200 with no manifest error; `npm run build` still green
+  and the workspace-root warning is gone.
+
+## 2026-07-09 — Turn the login screen into a real auth workflow (no API yet)
+
+Replaced the demo login (which faked a role redirect after a timeout) with a
+proper sign-in / sign-up workflow. **No backend is wired** — the network call is
+an explicit, typed seam to fill in later.
+
+- **API seam** — `src/features/auth/api.ts`: typed `signIn` / `signUp` /
+  `requestPasswordReset` that currently throw `AuthNotConnectedError`. Each has a
+  `TODO(api)` marker to POST to a **server-side route handler** so tokens never
+  reach the client bundle (see `../security/SECURITY.md`).
+- **Real validation** — `validation.ts`: email format, sign-up password policy
+  (8+ chars, a letter, a number) with a live requirements checklist,
+  confirm-password match, name and role checks. Per-field inline errors.
+- **Form engine** — `useAuthForm.ts`: generic controlled-form hook (values,
+  per-field errors, form-level error/notice, submitting state, a `field()`
+  binding, real `<form onSubmit>`).
+- **Forms** — `SignInForm` (+ `SignInFields`: email, password, remember-me,
+  forgot-password reset request) and `SignUpForm` (+ `SignUpFields`: name,
+  email, password, confirm, role) composed inside `AuthCard`; `PasswordField`
+  (show/hide) and `AuthSubmit` (spinner) are shared.
+- On success, `LoginPage` routes into the tutor by `user.role`
+  (`/` or `/?role=teacher`) — the integration point once auth returns a user.
+- **Global components**: added `Checkbox` (accessible, error-capable) and
+  upgraded `TextField` with `id` / `error` / `hint` / `disabled` /
+  `autoComplete` + ARIA (`aria-invalid`, `aria-describedby`). Barrel + catalog
+  updated.
+- Removed the old demo files (`LoginForm`, `LoginFields`, `useLoginForm`).
+- `npm run check` + `npm run build` green; smoke-tested `/login` and
+  `/login?mode=signup` (both 200, correct content).
+
+## 2026-07-09 — Implement the Mira Tutor app (+ Login) from the Claude Design handoff
+
+Built the first real product surface: the **Mira** adaptive-tutor experience,
+recreated in React from the `Mira Tutor.dc.html` / `Mira Login.dc.html`
+prototypes (the `<script>` DCLogic is the behavioural source of truth; the
+static `<x-dc>` template is only a rough preview).
+
+**Design system / tokens**
+
+- Rewrote `src/app/globals.css` with the Mira palette, type scale, radii,
+  shadows and keyframes as Tailwind v4 `@theme` tokens (paper/ink/green/coral/
+  amber/violet families; `shadow-soft/float/pop`; `animate-fade-up` etc.).
+- `src/app/layout.tsx` now self-hosts the three brand fonts (Bricolage
+  Grotesque, Hanken Grotesk, Space Mono) via `next/font/google` — **no external
+  font request, so the CSP `font-src 'self'` is unchanged** (see
+  `../security/SECURITY.md`).
+
+**Reusable component library** — `src/components/` (barrel + `README.md` catalog)
+
+- 15 presentational primitives: `Logo`, `Button`, `IconButton`,
+  `SegmentedControl`, `Card`, `Badge`, `Avatar`, `GlyphTile`, `SearchInput`,
+  `TextField`, `Modal`, `Toast`, `ProgressBar`, `StatCard`, `EmptyState`
+  (+ `icons`). Both features compose these thoroughly; Login is built almost
+  entirely from them, validating reuse.
+- Helpers: `src/lib/tones.ts` (tone→class maps — literal strings for Tailwind),
+  `src/lib/cn.ts`, `src/lib/backdrop.ts`; hooks `src/hooks/useResponsive.ts`
+  and `src/hooks/useToast.ts`.
+
+**Features**
+
+- `src/features/tutor/` — student home (chats rail + subject grid + profile
+  menu + modals), the guided chat (data-driven dialogue engine via a
+  `useReducer` handler-map, hint ladder, diagnosis / visual-hint / worked /
+  quiz / revision message kinds, confidence-gated quiz), and the teacher
+  dashboard (topics + students panels with search, topic & student drill-downs).
+  Conversation script lives as data in `data/dialogue.ts` + `dialogueGeneric.ts`.
+- `src/features/auth/` — the sign-in / sign-up screen with brand panel.
+- Routes: `src/app/page.tsx` (`?role=teacher` opens the teacher view) and
+  `src/app/login/page.tsx` (`?mode`/`?role` presets); both read the Next 16
+  async `searchParams`. Teacher logout routes to `/login`.
+
+**Verification**
+
+- `npm run check` (typecheck + lint + format) and `npm run build` both green.
+- Smoke-tested the running build: `/`, `/?role=teacher` and `/login` all return
+  200 and render their expected content.
+
+**Docs correction**
+
+- Reconciled the documented `max-lines` limit with the **enforced** config: it
+  is **200**, not 300 (`eslint.config.mjs`). Updated `../../RULES.md` §3 and
+  `../architecture/STRUCTURE.md` accordingly.
+
 ## 2026-07-08 — Promote pre-commit hook to a root monorepo orchestrator
 
 Moved Git-hook ownership from the frontend up to the **repo root** so a single

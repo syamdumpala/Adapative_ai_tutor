@@ -53,6 +53,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Pin the workspace root to this app. Without it, Next walks up and picks the
+  // monorepo root (it sees the root Husky `package-lock.json`), which makes
+  // Turbopack resolve its build manifest in the wrong place ("Manifest file is
+  // empty" on `next dev`). npm scripts run from `frontend/`, so cwd is correct.
+  turbopack: { root: process.cwd() },
   // Do not leak the framework/version to clients.
   poweredByHeader: false,
   // Fail production builds on type errors instead of silently shipping.

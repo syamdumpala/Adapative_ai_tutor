@@ -67,6 +67,16 @@ Never widen CSP blindly. When you must load an external script/style/image/API,
 add its **exact** origin to the specific directive (e.g. `connect-src`,
 `script-src`) — not a wildcard — and record it here with the reason.
 
+### Fonts are self-hosted (no CSP change)
+
+The Mira design links the Google Fonts CDN, but the app loads Bricolage
+Grotesque, Hanken Grotesk and Space Mono via **`next/font/google`**
+(`src/app/layout.tsx`). `next/font` downloads and self-hosts the files at build
+time and serves them same-origin, so **no `fonts.googleapis.com` /
+`fonts.gstatic.com` origin is needed** — `font-src 'self'` (and `style-src`)
+stay unchanged, and there is no runtime request to Google. Prefer this pattern
+over widening the CSP for any future web font.
+
 ## 3. Security linting
 
 Enforced by [`../../eslint.config.mjs`](../../eslint.config.mjs):
@@ -93,6 +103,20 @@ Template: [`../../.env.example`](../../.env.example). Rules:
 - Prefer a **server-side proxy** (Route Handler) between the browser and the
   backend so backend credentials never reach the client.
 - `.env*` is git-ignored; only `.env.example` (no real values) is committed.
+
+### Auth (when the API is wired)
+
+The login/sign-up UI is built but **not connected** — the seam is
+`src/features/auth/api.ts`. When wiring it:
+
+- Call a **server-side route handler** (e.g. `/api/auth/*`), not the backend
+  directly from the browser, so tokens/credentials stay off the client bundle.
+- Prefer an **httpOnly, `Secure`, `SameSite` cookie** session over storing
+  tokens in `localStorage` (XSS-readable).
+- The client-side validation in `validation.ts` is **UX only** — always
+  re-validate on the server.
+- If the auth endpoint is a different origin, add its **exact** origin to
+  `connect-src` in the CSP (§2) and record it there.
 
 ## 5. Type safety as a security control
 
