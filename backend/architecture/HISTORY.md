@@ -30,7 +30,7 @@ renamed the duplicate schema to `SessionIndexItem` (+ its `service.list_student_
 usage). Adapted `test_sessions_list_and_conversation_isolation` to the reconciled
 `Page` shape (`/tutor/sessions` is the rich chat rail; `/conversation` is the typed
 transcript).
-**Files:** `app/dbsync.py` (_WIDEN), `app/features/tutor/routes.py` (restored routes),
+**Files:** `app/dbsync.py` (\_WIDEN), `app/features/tutor/routes.py` (restored routes),
 `app/features/tutor/schemas.py` (rename), `app/features/tutor/service.py` (rename
 usage), `app/features/tutor/tests/test_tutor.py`.
 **Tests:** `make test` green (all passing); ruff clean. Widen verified on the live
