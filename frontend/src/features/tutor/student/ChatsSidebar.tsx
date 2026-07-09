@@ -1,7 +1,9 @@
 import { Badge, GlyphTile } from "@/components";
 import { cn } from "@/lib/cn";
-import { subjectById } from "../data/subjects";
+import { topicById } from "../data/topics";
+import { useTopics } from "../hooks/useTopics";
 import type { ChatSummary } from "../state/chatHelpers";
+import type { Topic } from "../types";
 
 interface ChatsSidebarProps {
   chats: Record<string, ChatSummary>;
@@ -12,12 +14,15 @@ interface ChatsSidebarProps {
 
 function ChatItem({
   chat,
+  topics,
   onClick,
 }: {
   chat: ChatSummary;
+  topics: Topic[];
   onClick: () => void;
 }) {
-  const subject = subjectById(chat.subjectId);
+  const topic =
+    topics.find((t) => t.id === chat.topicId) ?? topicById(chat.topicId);
   const pending = chat.status === "pending";
   return (
     <button
@@ -28,13 +33,13 @@ function ChatItem({
         pending && "border-l-[3px] border-l-amber",
       )}
     >
-      <GlyphTile glyph={subject.glyph} tone={subject.tone} size={32} />
+      <GlyphTile glyph={topic.glyph} tone={topic.tone} size={32} />
       <div className="min-w-0 flex-1 text-left">
         <div className="truncate text-[13px] font-semibold text-ink">
-          {chat.title || subject.name}
+          {chat.title || topic.name}
         </div>
         <div className="truncate text-[11px] text-ink3">
-          {subject.name} · {pending ? "in progress" : "resolved"}
+          {topic.name} · {pending ? "in progress" : "resolved"}
         </div>
       </div>
       <Badge
@@ -48,13 +53,14 @@ function ChatItem({
   );
 }
 
-/** "Your chats" rail: seeded + live conversations across every subject. */
+/** "Your chats" rail: seeded + live conversations across every topic. */
 export function ChatsSidebar({
   chats,
   order,
   onOpenChat,
   className,
 }: ChatsSidebarProps) {
+  const topics = useTopics();
   const ids = order.filter((id) => chats[id]);
   const pending = ids.filter((id) => chats[id]!.status === "pending").length;
   const resolved = ids.filter((id) => chats[id]!.status === "completed").length;
@@ -70,12 +76,17 @@ export function ChatsSidebar({
       </div>
       <div className="flex flex-col gap-[7px]">
         {ids.map((id) => (
-          <ChatItem key={id} chat={chats[id]!} onClick={() => onOpenChat(id)} />
+          <ChatItem
+            key={id}
+            chat={chats[id]!}
+            topics={topics}
+            onClick={() => onOpenChat(id)}
+          />
         ))}
       </div>
       {ids.length === 0 && (
         <div className="px-2 py-4 text-[12.5px] leading-normal text-ink3">
-          No chats yet. Pick a subject to start one — it shows up here once you
+          No chats yet. Pick a topic to start one — it shows up here once you
           ask your first question.
         </div>
       )}

@@ -47,6 +47,10 @@ _COLUMNS: list[tuple[str, str, str]] = [
     ("teacher_escalations", "status", "VARCHAR(16) NOT NULL DEFAULT 'open'"),
     ("teacher_escalations", "teacher_notes", "TEXT"),
     ("teacher_escalations", "resolved_at", "TIMESTAMP WITH TIME ZONE"),
+    # session_analytics grew misconception fields after the table's first version.
+    ("session_analytics", "misconception_category", "VARCHAR(128)"),
+    ("session_analytics", "misconception", "VARCHAR(255)"),
+    ("session_analytics", "misconception_index", "FLOAT NOT NULL DEFAULT 0"),
 ]
 
 # (index-name, table, column) — matches SQLAlchemy's ix_<table>_<column> naming.

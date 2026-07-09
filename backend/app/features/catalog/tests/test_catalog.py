@@ -16,16 +16,16 @@ async def test_subjects_list_envelope_and_progress(seeded_client):
     body = (await seeded_client.get("/subjects", headers=h)).json()
     assert body["total"] == 6
     assert {"items", "total", "limit", "offset", "has_more"} <= body.keys()
-    fractions = next(s for s in body["items"] if s["id"] == "fractions")
-    assert fractions["progress"] > 0  # Maya has per-concept mastery in fractions
-    decimals = next(s for s in body["items"] if s["id"] == "decimals")
+    fractions = next(s for s in body["items"] if s["id"] == "1")
+    assert fractions["progress"] > 0  # Maya has per-concept mastery in fractions (subject 1)
+    decimals = next(s for s in body["items"] if s["id"] == "2")
     assert decimals["is_new"] is True and decimals["progress"] == 0.0
 
 
 async def test_subjects_search_filter_sort_paginate(seeded_client):
     h = await _login(seeded_client)
     search = (await seeded_client.get("/subjects?q=decimal", headers=h)).json()
-    assert [s["id"] for s in search["items"]] == ["decimals"]
+    assert [s["id"] for s in search["items"]] == ["2"]
 
     new_only = (await seeded_client.get("/subjects?is_new=true", headers=h)).json()
     assert all(s["is_new"] for s in new_only["items"])
@@ -44,7 +44,7 @@ async def test_subjects_invalid_sort_is_422(seeded_client):
 
 async def test_topics_list_and_filter(seeded_client):
     h = await _login(seeded_client)
-    body = (await seeded_client.get("/topics?subject_id=fractions", headers=h)).json()
+    body = (await seeded_client.get("/topics?subject_id=1", headers=h)).json()
     assert body["total"] == 6
     assert body["items"][0]["id"] == "partition"  # default position order
 
@@ -54,7 +54,7 @@ async def test_topics_list_and_filter(seeded_client):
 
 async def test_topic_create_requires_teacher(seeded_client):
     student = await _login(seeded_client)
-    payload = {"id": "newtopic", "subject_id": "fractions", "name": "New Topic"}
+    payload = {"id": "newtopic", "subject_id": "1", "name": "New Topic"}
     denied = await seeded_client.post("/topics", json=payload, headers=student)
     assert denied.status_code == 403
 
@@ -66,14 +66,12 @@ async def test_topic_create_requires_teacher(seeded_client):
 
 async def test_subject_detail_includes_concepts(seeded_client):
     h = await _login(seeded_client)
-    body = (await seeded_client.get("/subjects/fractions", headers=h)).json()
-    assert body["id"] == "fractions"
+    body = (await seeded_client.get("/subjects/1", headers=h)).json()
+    assert body["id"] == "1"
     assert len(body["concepts"]) == 6
 
 
 async def test_subject_update_by_teacher(seeded_client):
     teacher = await _login(seeded_client, "teacher@school.edu")
-    resp = await seeded_client.patch(
-        "/subjects/fractions", json={"desc": "Updated blurb"}, headers=teacher
-    )
+    resp = await seeded_client.patch("/subjects/1", json={"desc": "Updated blurb"}, headers=teacher)
     assert resp.status_code == 200 and resp.json()["desc"] == "Updated blurb"

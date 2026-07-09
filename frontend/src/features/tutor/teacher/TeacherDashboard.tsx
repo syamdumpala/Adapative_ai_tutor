@@ -4,6 +4,7 @@ import type { TeacherNav } from "../hooks/useTeacherNav";
 import { StudentDetail } from "./StudentDetail";
 import { TeacherHome } from "./TeacherHome";
 import { TeacherToolbar } from "./TeacherToolbar";
+import { TopicCatalog } from "./TopicCatalog";
 import { TopicDetail } from "./TopicDetail";
 
 interface TeacherDashboardProps {
@@ -11,6 +12,9 @@ interface TeacherDashboardProps {
   students: TeacherStudent[];
   bp: Breakpoint;
   onLogout: () => void;
+  onProfile: () => void;
+  name: string;
+  initials: string;
 }
 
 function screenBody(
@@ -18,6 +22,9 @@ function screenBody(
   students: TeacherStudent[],
   bp: Breakpoint,
 ) {
+  if (nav.screen === "catalog") {
+    return <TopicCatalog />;
+  }
   if (nav.screen === "topic") {
     return (
       <TopicDetail
@@ -48,6 +55,9 @@ export function TeacherDashboard({
   students,
   bp,
   onLogout,
+  onProfile,
+  name,
+  initials,
 }: TeacherDashboardProps) {
   return (
     <main
@@ -57,8 +67,13 @@ export function TeacherDashboard({
       <div className="mx-auto flex max-w-[1240px] flex-col gap-5">
         <TeacherToolbar
           screen={nav.screen}
-          onHome={nav.goHome}
+          canGoBack={nav.canGoBack}
+          onBack={nav.goBack}
+          onCatalog={nav.openCatalog}
+          onProfile={onProfile}
           onLogout={onLogout}
+          name={name}
+          initials={initials}
         />
         {screenBody(nav, students, bp)}
       </div>

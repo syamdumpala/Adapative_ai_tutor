@@ -15,12 +15,12 @@ export interface AskResult {
 export function askTutor(
   question: string,
   sessionId: string | null,
-  subjectId: string,
+  topicId: string,
 ): Promise<AskResult> {
   return apiPost<AskResult>("/tutor/ask", {
     question,
     session_id: sessionId ?? undefined,
-    subject_id: subjectId,
+    subject_id: topicId,
   });
 }
 
@@ -40,7 +40,7 @@ export async function fetchChatList(): Promise<{
   for (const session of page.items) {
     chats[session.id] = {
       id: session.id,
-      subjectId: session.subject_id ?? "fractions",
+      topicId: session.subject_id ?? "1",
       title: session.title,
       status: session.status as ChatStatus,
       hintRung: session.hint_rung,

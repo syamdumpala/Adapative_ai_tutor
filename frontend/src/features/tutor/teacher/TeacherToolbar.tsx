@@ -1,47 +1,70 @@
-import { HomeIcon, IconButton } from "@/components";
+import { cn } from "@/lib/cn";
 import type { TeacherScreen } from "../types";
+import { TeacherAccountMenu } from "./TeacherAccountMenu";
 
 interface TeacherToolbarProps {
   screen: TeacherScreen;
-  onHome: () => void;
+  canGoBack: boolean;
+  onBack: () => void;
+  onCatalog: () => void;
+  onProfile: () => void;
   onLogout: () => void;
+  name: string;
+  initials: string;
 }
 
 const CRUMB: Record<TeacherScreen, string> = {
   home: "Teacher · Home",
   topic: "Teacher · Topic",
   student: "Teacher · Student",
+  catalog: "Teacher · Catalog",
 };
 
-/** Persistent teacher toolbar: breadcrumb, home button and logout. */
+/** Teacher toolbar: back control + breadcrumb, add-topic, and account menu. */
 export function TeacherToolbar({
   screen,
-  onHome,
+  canGoBack,
+  onBack,
+  onCatalog,
+  onProfile,
   onLogout,
+  name,
+  initials,
 }: TeacherToolbarProps) {
-  const atHome = screen === "home";
   return (
     <div className="flex items-center justify-between gap-3">
-      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink3">
-        {CRUMB[screen]}
-      </div>
-      <div className="flex items-center gap-2">
-        <IconButton
-          variant={atHome ? "ink" : "card"}
-          radius="rounded-[11px]"
-          onClick={onHome}
-          title="Home"
+      <button
+        type="button"
+        onClick={onBack}
+        disabled={!canGoBack}
+        title={canGoBack ? "Back" : undefined}
+        className={cn(
+          "flex items-center gap-[7px] font-mono text-[10px] uppercase tracking-[0.14em] transition",
+          canGoBack ? "text-ink2 hover:text-ink" : "cursor-default text-ink3",
+        )}
+      >
+        <span
+          className={cn("text-[15px] leading-none", !canGoBack && "opacity-30")}
         >
-          <HomeIcon />
-        </IconButton>
+          ‹
+        </span>
+        {CRUMB[screen]}
+      </button>
+      <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={onLogout}
-          title="Log out"
-          className="inline-flex h-[38px] items-center gap-2 rounded-full border border-line bg-card px-[15px] text-[13px] font-semibold text-coral-d shadow-soft transition hover:bg-coral-s"
+          onClick={onCatalog}
+          title="Add & manage topics"
+          className="inline-flex h-[38px] items-center gap-[6px] rounded-full border border-line bg-card px-[15px] text-[13px] font-semibold text-ink2 shadow-soft transition hover:bg-paper2"
         >
-          <span className="text-[14px]">⏻</span>Log out
+          <span className="text-[15px] leading-none">＋</span>Topic
         </button>
+        <TeacherAccountMenu
+          name={name}
+          initials={initials}
+          onProfile={onProfile}
+          onLogout={onLogout}
+        />
       </div>
     </div>
   );

@@ -12,6 +12,178 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-07-10 — Schema sync for new `session_analytics` columns (fix `/me/analytics` 500)
+
+**Author:** AI (Claude)
+**Summary:** On a live Postgres DB, `GET /me/analytics` 500'd with
+`UndefinedColumnError: column session_analytics.misconception does not exist`.
+`create_all` never ALTERs an existing table, and `dbsync._COLUMNS` (the additive
+schema-sync list run on startup / `make migrate`) had not been updated with the
+`session_analytics` misconception columns added after that table's first version.
+Added `misconception_category`, `misconception`, and `misconception_index`
+(`FLOAT NOT NULL DEFAULT 0`, which backfills existing rows) to `_COLUMNS`, ran
+`make migrate` (22 columns ensured), and backfilled `misconception_index` on the
+already-seeded demo rows via the canonical `misconfidence_index` formula so the
+trend line shows a real curve (MI ≈ −0.30…+0.20 per student) instead of a flat 0.
+**Files:** `app/dbsync.py` (`_COLUMNS`). **Tests:** `make test` green (62);
+verified on live Postgres — columns present, 52 rows backfilled, endpoint no
+longer errors.
+
+---
+
+## 2026-07-10 — Fix misplaced `misconception_matrix`; seed the Misconfidence Index
+
+**Author:** AI (Claude)
+**Summary:** After a pull that added the signed **Misconfidence Index**
+(`misconception_index`, MI = −C·(C−Â); `repository.misconfidence_index`) and a
+subject × misconception-category `misconception_matrix`, two merge
+inconsistencies were breaking the suite: (1) the required `misconception_matrix`
+field sat on `TopicAnalyticsResponse` while `get_analytics` builds it for
+`AnalyticsResponse` and the test reads it off `/me/analytics` — so `/me/topics`
+500'd (validation error) and `/me/analytics` silently dropped the matrix. Moved
+the field to `AnalyticsResponse` (its true home). (2) The completion test asserted
+the matrix cell `subject_id == "fractions"` while the session is created with
+`subject_id="1"`; corrected to `"1"`. Also updated the demo seed to populate
+`misconception_index` (and the `misconception` name) on each backdated snapshot —
+a flagged early point reads as confidently-wrong (negative MI), a clean point as a
+correct completion (positive MI) — so the trend line climbs from risk to mastery
+instead of sitting flat at 0.
+**Files:** `app/features/tutor/schemas.py` (move `misconception_matrix`),
+`app/features/tutor/tests/test_tutor.py` (matrix `subject_id`), `app/seed.py`
+(`misconfidence_index` import; MI/name on seeded `SessionAnalytics`).
+**Tests:** `make test` green (62 passed); ruff clean; seed re-verified end-to-end
+on SQLite (MI ranges ≈ −0.30…+0.20 across demo students, rising over time).
+
+---
+
+## 2026-07-10 — Demo analytics seed for the student "My progress" charts
+
+**Author:** AI (Claude)
+**Summary:** The overall progress charts read `session_analytics`, which is only
+written on live session completion — so demo accounts had empty charts. Added a
+backdated demo series: `seed._seed_session_analytics` creates, per student, a run
+of completed `TutorSession`s (spaced 4 days apart, oldest→newest) each with a
+short 2-line transcript and a `SessionAnalytics` snapshot following a rising
+mastery curve, confidence that leads early then converges (over-confidence), and
+early misconception categories. Also derives a `streak` for seeded
+`StudentConceptState` rows so the effort-vs-mastery bubbles vary. Seeding is
+**idempotent** (skips a student who already has analytics rows) and **gated**
+behind `seed(..., with_analytics=True)` — on for the real entrypoint
+(`python -m app.seed` / `make seed`), off for the test fixture whose assertions
+count a fixed number of sessions.
+**Files:** Modified `app/seed.py` (`ANALYTICS_SHAPE`, `MISCON_POOL`,
+`ANALYTIC_TITLES`, `_analytics_series`, `_streak_for`, `_seed_session_analytics`,
+`seed(with_analytics=...)`, `main`), `conftest.py` (thread `with_analytics`,
+add `analytics_client` fixture), `app/features/tutor/tests/test_reads.py`
+(integration test). **Tests:** full suite green (62 passed); verified end-to-end
+by running the seed against in-memory SQLite (Maya 12 pts 0.30→0.85 across 2
+subjects; Rohan 11 pts 0.15→0.30 with 5 misconceptions).
+
+---
+
+## 2026-07-10 — Per-topic student analytics endpoint (`GET /me/topics`)
+
+**Author:** AI (Claude)
+**Summary:** Added a student-facing, concept-grain analytics read so the student
+dashboard can chart **per-topic** performance (the existing `/me/analytics` is
+subject-grain only). `GET /me/topics` returns one `TopicAnalyticsPoint` per concept
+the signed-in student has engaged with — `mastery`, `confidence`, `understanding`,
+`attempts`, `streak`, `last_seen`, `next_review`, plus the concept's
+`glyph`/`tone`/`difficulty_band` — ordered by concept position. The read
+(`reads.get_topic_analytics`) is a student-scoped mirror of the teacher's
+`list_student_topics` join (`concepts` × `student_concept_state`); no schema/model
+changes were needed.
+**Files:** Modified `app/features/tutor/{schemas,reads,routes}.py`
+(`TopicAnalyticsPoint`/`TopicAnalyticsResponse`, `get_topic_analytics`,
+`GET /me/topics`), `app/features/tutor/tests/test_reads.py` (two tests), and this
+`architecture/{DIAGRAM,HISTORY}.md`.
+**Tests:** `test_reads.py` green (8/8), incl. the two new `/me/topics` tests
+(own concepts in position order; scoped to the signed-in student). Note: one
+pre-existing uncommitted WIP test (`test_completing_a_session_writes_analytics`)
+fails independently — it posts `subject_id="fractions"` while the seeded Fractions
+subject id is `"1"`, so `subject_name` resolves to `None`; unrelated to this change.
+
+---
+
+## 2026-07-09 — Subject-aware graph state + learning analytics (subject vs mastery vs confidence)
+
+**Author:** AI (Claude)
+**Summary:** Two additions. (1) **Subject in state:** `ask_question` now fetches the
+subject from the `subjects` table by the request's `subject_id`
+(`fetch_subject_name`) and seeds `state["subject"]` in both the new-session and
+existing-session branches, so every graph agent (diagnostic, misconception,
+planner, hint, guard, evaluator) is scoped to the real subject instead of the
+hardcoded `"Maths"` default. Unknown ids fall back gracefully. Note: `subject_id`
+must be a catalog slug (`fractions`, `decimals`, `percentages`, `integers`,
+`geometry`, `ratios`), not a numeric index. (2) **Learning analytics:** new
+`session_analytics` table (one upserted row per session, keyed by `session_id`)
+storing `student_id`, `session_id`, `subject_id`, `mastery`, `confidence`,
+`misconception_category`. Written automatically when a session completes (enters
+history mode) via `record_session_analytics`. New read `GET /me/analytics`
+(`reads.get_analytics`) returns per-subject means (`by_subject`) plus the raw
+per-session `points` — plot-ready for subject vs mastery vs confidence.
+**Files:**
+
+- Modified: `app/features/tutor/service.py` (`fetch_subject_name`,
+  `record_session_analytics`, subject-in-state wiring, analytics write on
+  completion), `app/features/tutor/models.py` (`SessionAnalytics`),
+  `app/features/tutor/schemas.py` (`AnalyticsPoint`, `SubjectAnalytics`,
+  `AnalyticsResponse`), `app/features/tutor/reads.py` (`get_analytics`),
+  `app/features/tutor/routes.py` (`GET /me/analytics`),
+  `app/features/tutor/tests/test_tutor.py` (subject-in-state + analytics tests).
+  **Tests:** `make test` green (59 passed); analytics + subject-flow verified
+  end-to-end against local PostgreSQL.
+
+## 2026-07-09 — Subject ids are numeric (1..6) instead of slugs
+
+**Author:** AI (Claude)
+**Summary:** Changed subject ids from slugs (`fractions`, `decimals`, …) to
+incremental numbers (`"1"`..`"6"`, catalog order). Concept ids are unchanged
+(still `partition`, etc.); only `subjects.id` and the values that reference it
+moved to numbers. Updated the seed (SUBJECTS ids, `concepts.subject_id`, the
+demo sessions' `subject_id`, the escalation), the tutor default
+(`subject_id or "1"`), and the catalog tests. Added an idempotent data migration
+`app/migrate_subjects.py` (`make migrate-subjects`) that renames existing
+subjects by creating the new numeric row, repointing `concepts.subject_id` (FK)
+and `tutor_sessions.subject_id`, then deleting the old row — ran it on the live
+Postgres (6 subjects renamed; concepts now under `1`, sessions repointed).
+Frontend counterpart: static `SUBJECTS` ids → `1..6` and the two `"fractions"`
+fallbacks → `"1"`.
+**Files:** `app/seed.py`, `app/features/tutor/service.py`,
+`app/features/catalog/tests/test_catalog.py`, `app/migrate_subjects.py` (new),
+`Makefile`; frontend `data/subjects.ts`, `state/chatHelpers.ts`, `api/chat.ts`.
+**Tests:** `make test` green; ruff clean; frontend `npm run check` green.
+Migration verified on Postgres.
+
+## 2026-07-09 — Subject-aware graph state + learning analytics (subject vs mastery vs confidence)
+
+**Author:** AI (Claude)
+**Summary:** Two additions. (1) **Subject in state:** `ask_question` now fetches the
+subject from the `subjects` table by the request's `subject_id`
+(`fetch_subject_name`) and seeds `state["subject"]` in both the new-session and
+existing-session branches, so every graph agent (diagnostic, misconception,
+planner, hint, guard, evaluator) is scoped to the real subject instead of the
+hardcoded `"Maths"` default. Unknown ids fall back gracefully. Note: `subject_id`
+must be a catalog slug (`fractions`, `decimals`, `percentages`, `integers`,
+`geometry`, `ratios`), not a numeric index. (2) **Learning analytics:** new
+`session_analytics` table (one upserted row per session, keyed by `session_id`)
+storing `student_id`, `session_id`, `subject_id`, `mastery`, `confidence`,
+`misconception_category`. Written automatically when a session completes (enters
+history mode) via `record_session_analytics`. New read `GET /me/analytics`
+(`reads.get_analytics`) returns per-subject means (`by_subject`) plus the raw
+per-session `points` — plot-ready for subject vs mastery vs confidence.
+**Files:**
+
+- Modified: `app/features/tutor/service.py` (`fetch_subject_name`,
+  `record_session_analytics`, subject-in-state wiring, analytics write on
+  completion), `app/features/tutor/models.py` (`SessionAnalytics`),
+  `app/features/tutor/schemas.py` (`AnalyticsPoint`, `SubjectAnalytics`,
+  `AnalyticsResponse`), `app/features/tutor/reads.py` (`get_analytics`),
+  `app/features/tutor/routes.py` (`GET /me/analytics`),
+  `app/features/tutor/tests/test_tutor.py` (subject-in-state + analytics tests).
+  **Tests:** `make test` green (59 passed); analytics + subject-flow verified
+  end-to-end against local PostgreSQL.
+
 ## 2026-07-09 — Fix /tutor/ask 500 (kind width) + restore frontend read routes after merge
 
 **Author:** AI (Claude)

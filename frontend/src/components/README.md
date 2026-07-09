@@ -36,7 +36,7 @@ import { Button, Card, Badge, GlyphTile } from "@/components";
 | `Card`                    | Shared surface (white, hairline border, soft shadow)      | `className` (add radius/padding/hover)                                       |
 | `Badge`                   | Status / label pill                                       | `tone`, `mono`, `pulse`, `className`                                         |
 | `Avatar`                  | Gradient initials square                                  | `initials`, `gradient` (`good`/`warn`/`bad`/`violet`), `size`, `display`     |
-| `GlyphTile`               | Tinted tile stamped with a subject/topic glyph            | `glyph`, `tone` or `toneClassName`, `size`                                   |
+| `GlyphTile`               | Tinted tile stamped with a topic glyph                    | `glyph`, `tone` or `toneClassName`, `size`                                   |
 | `SearchInput`             | Text input with leading search icon + focus ring          | `value`, `onChange`, `placeholder`, `height`                                 |
 | `TextField`               | Labeled form input — inline `error`, `hint`, ARIA wiring  | `label`, `value`, `onChange`, `id`, `error`, `autoComplete`, `trailing`      |
 | `Checkbox`                | Accessible controlled checkbox with optional error        | `checked`, `onChange`, `label`, `id`, `error`                                |

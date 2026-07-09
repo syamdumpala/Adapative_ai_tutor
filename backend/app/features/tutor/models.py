@@ -125,6 +125,34 @@ class TutorSession(Base):
     )
 
 
+class SessionAnalytics(Base):
+    """One analytics snapshot per completed session — the grain the mastery/confidence
+    vs subject charts read from. Upserted (one row per session) when a session
+    reaches history mode (status="completed")."""
+
+    __tablename__ = "session_analytics"
+    __table_args__ = (UniqueConstraint("session_id", name="uq_analytics_session"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(
+        ForeignKey("students.id", ondelete="CASCADE"), index=True
+    )
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("tutor_sessions.id", ondelete="CASCADE"), index=True
+    )
+    subject_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    mastery: Mapped[float] = mapped_column(Float, default=0.0)  # 0..1
+    confidence: Mapped[float] = mapped_column(Float, default=0.0)  # 0..1
+    misconception_category: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    misconception: Mapped[str | None] = mapped_column(String(255), nullable=True)  # the value/name
+
+    misconception_index: Mapped[float] = mapped_column(Float, default=0.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class ConversationHistory(Base):
     """Every user message and assistant response, per session (conversation history)."""
 

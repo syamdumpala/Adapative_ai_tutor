@@ -133,3 +133,28 @@ context — the Evaluator, for example, judges the latest answer against the
 **initial** question using every hint in between. A subject guardrail is appended
 to each agent call at runtime (prompts unchanged). Fetch the typed transcript via
 `GET /tutor/sessions/{id}/conversation`; list sessions via `GET /tutor/sessions`.
+
+### Subject in state
+
+At the start of each turn, `ask_question` resolves the session's `subject_id`
+(catalog slug) to its display name via `fetch_subject_name` and seeds
+`state["subject"]` — in both the new-session and existing-session branches — so
+every agent answers within the right subject (the guardrail above uses it too).
+Unknown ids fall back to a default.
+
+### Learning analytics
+
+When a session completes (the student reaches history mode), the service upserts
+one row into `session_analytics` (`record_session_analytics`): `student_id`,
+`session_id`, `subject_id`, `mastery`, `confidence`, `misconception_category`.
+`GET /me/analytics` (`reads.get_analytics`) returns per-subject means
+(`by_subject`) plus the raw per-session `points` — plot-ready for **subject vs
+mastery vs confidence**.
+
+`GET /me/topics` (`reads.get_topic_analytics`) returns the **per-topic** grain for
+the signed-in student: one row per `concept` the student has engaged with, joining
+`concepts` × `student_concept_state` (a student-scoped mirror of the teacher's
+`list_student_topics`). Each row carries `mastery`, `confidence`, `understanding`
+(yes/partial/no), `attempts`, `streak`, `last_seen`, `next_review`, plus the
+concept's `glyph`/`tone`/`difficulty_band` — plot-ready for **per-topic mastery
+ranking, mastery-vs-confidence, understanding mix, and effort-vs-mastery**.

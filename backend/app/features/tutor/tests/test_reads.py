@@ -62,3 +62,51 @@ async def test_profile_and_performance(seeded_client):
     assert perf["misconceptions_resolving"] == 1
     assert "Whole-number bias" in perf["insight"]["text"]
     assert {s["key"] for s in perf["stats"]} == {"accuracy", "mastered", "streak", "misconception"}
+
+
+async def test_topic_analytics_returns_own_concepts_in_position_order(seeded_client):
+    h = await _login(seeded_client)
+    body = (await seeded_client.get("/me/topics", headers=h)).json()
+    topics = body["topics"]
+    # Maya has engaged with four concepts; they come back ordered by concept position.
+    assert [t["concept_id"] for t in topics] == ["partition", "cmpUnit", "cmpAny", "equiv"]
+
+    part = topics[0]
+    assert part["concept_name"] == "Equal partitioning"
+    assert part["subject_id"] == "1" and part["subject_name"] == "Fractions"
+    assert part["glyph"] == "◐" and part["tone"] == "green"
+    assert part["mastery"] == 0.7 and part["confidence"] == 0.7
+    assert part["understanding"] == "yes" and part["attempts"] == 3
+    assert part["next_review"] is not None
+
+    equiv = topics[-1]
+    assert equiv["understanding"] == "partial" and equiv["mastery"] == 0.3
+
+
+async def test_topic_analytics_scoped_to_signed_in_student(seeded_client):
+    # Rohan engaged with only partition + cmpAny; he must not see Maya's other topics.
+    h = await _login(seeded_client, "rohan@school.edu")
+    body = (await seeded_client.get("/me/topics", headers=h)).json()
+    assert {t["concept_id"] for t in body["topics"]} == {"partition", "cmpAny"}
+
+
+async def test_seeded_analytics_populate_progress_charts(analytics_client):
+    """The demo analytics series feeds the overall "My progress" charts with real rows."""
+    from app.seed import ANALYTICS_SHAPE
+
+    h = await _login(analytics_client)
+    body = (await analytics_client.get("/me/analytics", headers=h)).json()
+
+    points = body["points"]
+    assert len(points) == ANALYTICS_SHAPE["maya"]["n"]
+    # Ordered oldest→newest and trending upward (learning progress).
+    assert points[-1]["mastery"] > points[0]["mastery"]
+    # Some early points carry a misconception (drives the donut).
+    assert any(p["misconception_category"] for p in points)
+    # The signed Misconfidence Index is populated (not flat at 0) and both signs occur.
+    mis = [p["misconception_index"] for p in points]
+    assert any(m < 0 for m in mis) and any(m > 0 for m in mis)
+    # One by-subject aggregate per distinct subject the points span.
+    subjects = {p["subject_id"] for p in points}
+    assert subjects >= {"1"}
+    assert len(body["by_subject"]) == len(subjects)

@@ -13,7 +13,7 @@ interface GlyphTileProps {
   className?: string;
 }
 
-/** Rounded, tinted tile stamped with a subject/topic glyph. */
+/** Rounded, tinted tile stamped with a topic glyph. */
 export function GlyphTile({
   glyph,
   tone = "green",

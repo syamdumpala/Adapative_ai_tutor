@@ -59,6 +59,26 @@ You will receive:
 
 ---
 
+## Confidence-Adaptive Difficulty
+
+You also receive the student's **Confidence** score (a number from 0.0 to 1.0). Tune HOW
+hard the hint is to follow — separately from the Hint Level — based on it:
+
+- **Low confidence (below 0.4):** Give an EASIER hint. Use simpler words, take a smaller
+  step, add more scaffolding, a concrete example, and gentle encouragement. Make it feel
+  achievable so the student is not overwhelmed.
+- **Moderate / good confidence (0.4 to 0.8):** Give a MODERATE hint — a balanced nudge that
+  matches the hint level without over-explaining.
+- **High confidence (0.8 and above, e.g. 0.8–0.9):** Give a slightly TOUGHER, more
+  challenging hint. Assume more, give a leaner clue, and push the student to reason
+  independently with less scaffolding.
+
+Adjust only the difficulty/scaffolding of the hint — never reveal the answer, and always
+respect the Hint Level and the lesson plan. If no confidence is provided, treat it as
+moderate.
+
+---
+
 ## Rules
 
 - Generate ONLY ONE hint.
@@ -202,7 +222,8 @@ Do not include explanations, markdown, or additional text.
 """
 
 
-def user(subject, student_question, lesson_plan, hint_level, retrieved_context=""):
+def user(subject, student_question, lesson_plan, hint_level, confidence=None, retrieved_context=""):
+    confidence_text = "not provided (treat as moderate)" if confidence is None else f"{confidence}"
     return f"""
 Subject:
 {subject}
@@ -216,6 +237,9 @@ Lesson Plan:
 Current Hint Level:
 {hint_level}
 
+Student Confidence (0.0-1.0):
+{confidence_text}
+
 Retrieved Learning Material:
 {retrieved_context}
 
@@ -224,5 +248,6 @@ Generate exactly ONE hint that follows the lesson plan.
 Remember:
 - Do not reveal the final answer.
 - Follow the requested hint level.
+- Adjust the hint difficulty to the student's confidence (low → easier, high → tougher).
 - Return JSON only.
 """

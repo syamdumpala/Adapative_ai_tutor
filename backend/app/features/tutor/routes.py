@@ -8,6 +8,7 @@ from app.features.auth.dependencies import get_current_student, get_current_user
 from app.features.auth.models import Student
 from app.features.tutor import reads
 from app.features.tutor.schemas import (
+    AnalyticsResponse,
     AskRequest,
     AskResponse,
     ConversationResponse,
@@ -16,6 +17,7 @@ from app.features.tutor.schemas import (
     ProfileOut,
     SessionDetail,
     SessionSummary,
+    TopicAnalyticsResponse,
 )
 from app.features.tutor.service import (
     SessionClosedError,
@@ -40,6 +42,7 @@ async def ask(
     with the student's answer to continue the loop (evaluate → next hint / done /
     escalate).
     """
+
     if not llm_is_configured():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -143,3 +146,24 @@ async def my_performance(
 ):
     """The student performance record: accuracy, mastery, streak, misconception status."""
     return await reads.get_performance(db, current)
+
+
+@me_router.get("/analytics", response_model=AnalyticsResponse)
+async def my_analytics(
+    current: Student = Depends(get_current_student),
+    db: AsyncSession = Depends(get_db),
+):
+    """Learning analytics for charting subject vs mastery vs confidence: per-subject
+    means plus the raw per-completed-session snapshots."""
+    return await reads.get_analytics(db, current)
+
+
+@me_router.get("/topics", response_model=TopicAnalyticsResponse)
+async def my_topic_analytics(
+    current: Student = Depends(get_current_student),
+    db: AsyncSession = Depends(get_db),
+):
+    """Per-topic learning analytics: mastery, confidence, understanding, effort and
+    review timing for every concept the signed-in student has engaged with — ready to
+    chart per-topic performance."""
+    return await reads.get_topic_analytics(db, current)

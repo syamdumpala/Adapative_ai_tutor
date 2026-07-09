@@ -1,10 +1,9 @@
 import { Avatar, Modal, StatCard } from "@/components";
-import { fullName } from "../data/student";
-import type { PerformanceDTO, ProfileDTO } from "../api/student";
-import { usePerformance, useProfile } from "../hooks/useMeData";
-import type { ModalKind } from "../types";
+import type { PerformanceDTO, ProfileDTO } from "./api/student";
+import { usePerformance, useProfile } from "./hooks/useMeData";
+import type { ModalKind } from "./types";
 
-interface StudentModalProps {
+interface AccountModalProps {
   modal: ModalKind;
   onClose: () => void;
   name: string;
@@ -26,7 +25,7 @@ interface ProfileView {
   initials: string;
   email: string;
   since: string;
-  subjects: string;
+  topics: string;
 }
 
 function profileView(
@@ -35,13 +34,14 @@ function profileView(
   initials: string,
 ): ProfileView {
   if (!profile) {
+    // Role-neutral fallback until GET /me/profile resolves (used for both roles).
     return {
-      displayName: fullName(name),
-      roleLine: "Student",
+      displayName: name,
+      roleLine: "",
       initials,
       email: "—",
       since: "—",
-      subjects: "0",
+      topics: "—",
     };
   }
   const grade = profile.grade ? ` · ${profile.grade}` : "";
@@ -51,7 +51,7 @@ function profileView(
     initials: profile.initials,
     email: profile.email,
     since: profile.member_since,
-    subjects: String(profile.subjects_available),
+    topics: String(profile.subjects_available),
   };
 }
 
@@ -72,12 +72,14 @@ function ProfileBody({
         <div className="font-display text-[20px] font-extrabold">
           {v.displayName}
         </div>
-        <div className="mt-[2px] text-[13px] text-ink2">{v.roleLine}</div>
+        {v.roleLine && (
+          <div className="mt-[2px] text-[13px] text-ink2">{v.roleLine}</div>
+        )}
       </div>
       <div className="mt-1 flex w-full flex-col gap-[6px]">
         <DetailRow label="Email" value={v.email} />
         <DetailRow label="Member since" value={v.since} />
-        <DetailRow label="Subjects available" value={v.subjects} />
+        <DetailRow label="Topics available" value={v.topics} />
       </div>
     </div>
   );
@@ -108,13 +110,13 @@ function PerformanceBody({ perf }: { perf: PerformanceDTO | null }) {
   );
 }
 
-/** Profile / performance dialog for the student account menu (live from `/me/*`). */
-export function StudentModal({
+/** Profile / performance dialog for the account menu (live from `/me/*`). */
+export function AccountModal({
   modal,
   onClose,
   name,
   initials,
-}: StudentModalProps) {
+}: AccountModalProps) {
   const profile = useProfile(modal === "profile");
   const perf = usePerformance(modal === "performance");
   return (

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.features.auth.models import Student
+from app.features.catalog.models import Subject
 from app.features.tutor.graph import trace
 from app.features.tutor.graph.graph import tutor_graph
 from app.features.tutor.graph.state import detect_distress, new_state, serialize
@@ -61,6 +62,17 @@ class SessionClosedError(Exception):
     pass
 
 
+async def fetch_subject_name(db: AsyncSession, subject_id: str | None, fallback: str) -> str:
+    """Fetch a subject from the subjects table by its id and return its display name.
+    Used to seed `state["subject"]` so every agent in the graph is subject-aware.
+    Returns `fallback` when no id is given or the id matches no subject row.
+    """
+    if not subject_id:
+        return fallback
+    subject = await db.get(Subject, subject_id)
+    return subject.name if subject else fallback
+
+
 async def ask_question(
     db: AsyncSession,
     student: Student,
@@ -69,6 +81,7 @@ async def ask_question(
     self_rating: int = 3,
     subject_id: str | None = None,
 ) -> AskResponse:
+    subject = await fetch_subject_name(db, subject_id, "none")
     if session_id:
         session = await get_session(db, session_id, student.id)
         if session is None:
@@ -80,6 +93,9 @@ async def ask_question(
             if session.state
             else new_state(student.id, session_id, session.concept)
         )
+        # Existing session (incl. older ones): fetch the subject from its stored
+        # subject_id and put it in the state so every agent stays subject-aware.
+        state["subject"] = subject
         raw_awaiting = (session.state or {}).get("awaiting")
         # Normalize (legacy sessions stored a bool for "awaiting a hint answer").
         awaiting = (
@@ -92,7 +108,7 @@ async def ask_question(
         session = TutorSession(
             id=session_id,
             student_id=student.id,
-            subject_id=subject_id or "fractions",
+            subject_id=subject_id or "1",
             concept=question,
             title=question[:255],
             status="active",
@@ -100,6 +116,9 @@ async def ask_question(
         db.add(session)
         await db.flush()
         state = new_state(student.id, session_id, question)
+        # New session: fetch the subject from the subject_id we just stored and put it
+        # in the state so every agent answers in the right subject from turn one.
+        state["subject"] = subject
         awaiting = None
 
     # Turn inputs

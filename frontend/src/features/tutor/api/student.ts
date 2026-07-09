@@ -1,19 +1,6 @@
 import { apiGet, type Page, qs } from "@/lib/api";
-import type { Tone } from "@/lib/tones";
-import type { Subject } from "../types";
 
 /** Student-facing API client + mappers onto the existing view types. */
-
-interface SubjectDTO {
-  id: string;
-  name: string;
-  glyph: string;
-  tone: string;
-  desc: string;
-  meta: string;
-  is_new: boolean;
-  progress: number;
-}
 
 export interface ProfileDTO {
   full_name: string;
@@ -66,26 +53,66 @@ export interface MessageDTO {
   created_at: string;
 }
 
-function toSubject(dto: SubjectDTO): Subject {
-  return {
-    id: dto.id,
-    name: dto.name,
-    glyph: dto.glyph,
-    tone: dto.tone as Tone,
-    desc: dto.desc,
-    meta: dto.meta,
-    progress: dto.progress,
-    isNew: dto.is_new,
-  };
+/** One completed-session snapshot — a single point on the overall trend charts. */
+export interface AnalyticsPointDTO {
+  session_id: string;
+  subject_id: string | null;
+  subject_name: string | null;
+  mastery: number;
+  confidence: number;
+  misconception_category: string | null;
+  misconception: string | null;
+  /** Signed Misconfidence Index (MI): positive = mastery, negative = misconception risk. */
+  misconception_index: number;
+  created_at: string | null;
 }
 
-export async function fetchSubjects(): Promise<Subject[]> {
-  const page = await apiGet<Page<SubjectDTO>>(`/subjects${qs({ limit: 100 })}`);
-  return page.items.map(toSubject);
+/** Per-subject mean mastery & confidence across the subject's sessions. */
+export interface SubjectAnalyticsDTO {
+  subject_id: string | null;
+  subject_name: string | null;
+  mastery: number;
+  confidence: number;
+  sessions: number;
+}
+
+export interface AnalyticsDTO {
+  by_subject: SubjectAnalyticsDTO[];
+  points: AnalyticsPointDTO[];
+}
+
+/** One concept the student has engaged with — a point on the per-topic charts. */
+export interface TopicAnalyticsDTO {
+  concept_id: string;
+  concept_name: string;
+  subject_id: string | null;
+  subject_name: string | null;
+  glyph: string;
+  tone: string;
+  difficulty_band: string;
+  mastery: number;
+  confidence: number;
+  understanding: string;
+  attempts: number;
+  streak: number;
+  last_seen: string | null;
+  next_review: string | null;
+}
+
+export interface TopicAnalyticsResponseDTO {
+  topics: TopicAnalyticsDTO[];
 }
 
 export function fetchProfile(): Promise<ProfileDTO> {
   return apiGet<ProfileDTO>("/me/profile");
+}
+
+export function fetchAnalytics(): Promise<AnalyticsDTO> {
+  return apiGet<AnalyticsDTO>("/me/analytics");
+}
+
+export function fetchTopicAnalytics(): Promise<TopicAnalyticsResponseDTO> {
+  return apiGet<TopicAnalyticsResponseDTO>("/me/topics");
 }
 
 export function fetchPerformance(): Promise<PerformanceDTO> {

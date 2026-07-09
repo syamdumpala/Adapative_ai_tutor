@@ -4,6 +4,133 @@ Append-only changelog. Newest first.
 
 ---
 
+## 2026-07-10 — Trend chart: Misconfidence Index line + info tooltip
+
+Extended the "Mastery & confidence over time" chart on the student progress page.
+
+- **Third series** — the backend now returns a signed **Misconfidence Index**
+  (`misconception_index`, MI = −C·(C−Â); positive = mastery, negative =
+  confidently-wrong risk) per completed session. `MasteryTrendChart` plots it as
+  a third amber line on a **secondary right axis** (mastery/confidence stay on the
+  left 0–100% axis), with a dashed zero reference line marking the neutral point.
+  The coral "misconception detected" marker dots moved onto this MI line, and the
+  tooltip formats MI as a signed decimal vs. the % series.
+- **Info affordance** — new `InfoDot` ("?" circle, hover/focus reveals a
+  paragraph) wired into `ChartCard` via an optional `info` prop; the trend card
+  now explains what the chart shows and how the index is read.
+- **API** — `AnalyticsPointDTO` gains `misconception` + `misconception_index`.
+- **Verify** — `npm run check` + `next build` green.
+
+## 2026-07-10 — Student analytics page (performance graphs)
+
+Added a dedicated **"My progress"** page for the signed-in student that charts
+their performance overall and per topic, using Recharts.
+
+- **New surface** — `student/analytics/StudentAnalytics` renders a back-to-home
+  header + a `SegmentedControl` toggle between two panels:
+  - **Overall** (`OverviewPanel`) — the `/me/performance` KPI tiles, a hero
+    mastery-vs-confidence trend line over every completed session (coral dots
+    flag misconceptions), a misconception-by-type donut, and a mastery-vs-
+    confidence-by-subject grouped bar. Data from `GET /me/analytics` +
+    `GET /me/performance`.
+  - **By topic** (`TopicsPanel`) — topic mastery ranking, per-topic mastery-vs-
+    confidence, effort-vs-mastery bubble scatter, understanding-mix donut, and a
+    "review due" rail. Data from the new `GET /me/topics`.
+- **Charts** — one small file per chart under `analytics/charts/` plus a shared
+  `chartTheme.ts` (design-token hex, tone/understanding/mastery → colour),
+  `ChartCard` wrapper (title + empty state), and `format.ts` helpers. Grouped
+  mastery/confidence bars are shared via `GroupedBars` (subject + topic reuse).
+- **Data layer** — `api/student.ts` gains `AnalyticsDTO` / `TopicAnalyticsDTO`
+  + `fetchAnalytics` / `fetchTopicAnalytics`; `hooks/useAnalytics.ts` exposes
+  `useAnalytics` / `useTopicAnalytics` (mount-fetch, loading/error state).
+- **Navigation** — `useTutorShell` now owns a `studentView` (`home | analytics`)
+  with `openAnalytics` / `backToHome`; reached via a new "My progress" item in
+  the account `ProfileMenu`. Threaded through `StudentArea → StudentHome →
+  TopicGrid → ProfileMenu`.
+- **Dependency** — added `recharts` (SVG, no `eval` → passes the CSP).
+- **Verify** — `npm run check` (typecheck + lint + Prettier) and `next build`
+  both green.
+
+## 2026-07-10 — Student home: searchable topic grid
+
+Added a search box to the student home so learners can filter the topic catalog
+instead of scanning the whole grid.
+
+- **`student/TopicGrid`** now owns a `query` state and renders the shared
+  `SearchInput` between the greeting header and the card grid. Matching is
+  case-insensitive over each topic's `name` + `desc` (`matchesQuery`), memoised
+  over the live catalog from `useTopics`; an empty query shows the full grid.
+- **No matches** → the shared `EmptyState` ("No topics match …") replaces the
+  grid so the screen never goes blank mid-search.
+- **Decomposition** — to stay under the file/function limits, the header and the
+  results grid were extracted into `TopicGridHeader` and `TopicResults`
+  sub-components, and the file is now `"use client"` (it owns state).
+- **Scope** — purely client-side over the already-fetched catalog (the student
+  topic list is small); the backend `/subjects` contract is untouched.
+- **Verify** — `npm run check` (typecheck + lint + Prettier) and `next build`
+  both green.
+
+## 2026-07-10 — Teacher dashboard chrome: logo-home, back button, account menu
+
+Reworked the teacher toolbar so navigation and account actions read like a real
+app instead of loose buttons.
+
+- **Mira logo = Home** — the Topbar logo now navigates the teacher to Home
+  (`useTutorShell.onLogoClick` routes to `teacherNav.goHome()` for teachers);
+  the standalone Home icon button was removed from the toolbar.
+- **Back button** — `useTeacherNav` gained a navigation stack (`goBack`,
+  `canGoBack`); the toolbar's left side is now a "‹ Teacher · …" back control
+  that returns to the previous screen and is disabled at the Home root. Each
+  frame snapshots the full context (`screen` + `topicId` + `studentId`), so
+  walking back through the topic↔student cross-links restores the exact entity
+  that was shown, not just the screen type. `goHome` clears the stack.
+- **Account menu** — the direct "Log out" button became a profile **avatar**
+  (`teacher/TeacherAccountMenu.tsx`) that opens a dropdown with **Profile** and
+  **Log out**. Profile opens the account modal.
+- **Shared profile modal** — `student/StudentModal.tsx` was generalized to
+  `AccountModal` (moved to the tutor root) and is now rendered for both roles;
+  the teacher's Profile action opens it via `openModal("profile")` (live from
+  `/me/profile`). Its pre-load fallback is now role-neutral (no fabricated
+  student surname / "Student" label).
+- **Verify** — `npm run check` + `next build` green. A multi-agent adversarial
+  review of the diff caught and fixed: the back-stack losing entity context, the
+  student-specific profile fallback leaking to teachers, and missing menu
+  a11y (`aria-haspopup`/`aria-expanded`, `role=menu`, Escape-to-close).
+
+## 2026-07-09 — Rename "Subject" → "Topic" (UI) + teacher "Add topic" flow
+
+Aligned the product vocabulary with what the home screen actually shows, and
+gave teachers a way to grow the catalog.
+
+- **Terminology** — the student-facing domain object is now **Topic**
+  everywhere in the frontend: the `Topic` type, `data/topics.ts`
+  (`TOPICS`/`topicById`), `hooks/useTopics.ts`, `student/TopicCard` +
+  `student/TopicGrid`, the chat-state field `topicId`, `MiraChat.openTopic`, and
+  all visible copy ("Topics", "Pick a topic to begin", "Topics available",
+  "Back to topics", etc.). **The backend contract is untouched**: the catalog
+  client `api/catalog.ts` is the single seam that still speaks the backend's
+  `subject` vocabulary (`GET/POST /subjects`, `subject_id`, `subjects_available`).
+- **Teacher "Add topic"** — new catalog screen (`teacher/TopicCatalog.tsx`,
+  `TeacherScreen: "catalog"`) reachable from a "＋ Topic" button in
+  `TeacherToolbar`. `teacher/TopicCreateModal.tsx` + `teacher/topicForm.ts`
+  collect name/description/glyph/accent/caption, auto-slugify the id to the
+  backend's `^[a-z0-9_-]+$`, validate (empty name; **duplicate by name**, since
+  ids are decoupled from names — seeds use `"1".."6"`), clamp field lengths to
+  the backend caps, and `createTopic()` POSTs to the teacher-gated `/subjects`.
+  New topics prepend to the catalog and appear on every student's home.
+- **Live topic resolution in chat** — `ChatView`/`ChatsSidebar` now resolve the
+  open chat's topic from the **live** catalog (`useTopics`) with the static
+  catalog as fallback, so a teacher-created (slug-id) topic no longer renders as
+  "Fractions" in the chat header/sidebar.
+- **Card descriptions truncate** — topic cards on the **teacher catalog and the
+  student home** show only the first 5 words + "…" (full text on hover via
+  `title`), via the shared `lib/text.ts#truncateWords`, so a long teacher-authored
+  paragraph no longer balloons a card.
+- **Verify** — `npm run check` (typecheck + lint + format) and `next build` are
+  green; guardrails respected (modal logic split into `topicForm.ts` to stay
+  under the 200-line/50-line limits). A multi-agent adversarial review of the
+  diff surfaced these two behavioral gaps + the length-cap gap, all fixed.
+
 ## 2026-07-09 — Remove demo scaffolding; make the chat fully live
 
 Stripped the prototype affordances so the app behaves like a real product driven

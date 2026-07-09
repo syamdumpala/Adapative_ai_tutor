@@ -3,7 +3,7 @@
 VENV ?= .venv
 PY := $(VENV)/bin/python
 
-.PHONY: venv install install-dev run migrate seed test lint format hooks
+.PHONY: venv install install-dev run migrate migrate-subjects seed test lint format hooks
 
 venv:
 	python3 -m venv $(VENV)
@@ -20,6 +20,10 @@ run:
 # Additively sync the schema (create tables + add new columns). Idempotent.
 migrate:
 	$(PY) -m app.dbsync
+
+# One-off: rename subject slug ids to numeric ids (1..6) in an existing DB.
+migrate-subjects:
+	$(PY) -m app.migrate_subjects
 
 # Populate the configured database with the demo dataset (idempotent).
 seed:

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { Breakpoint } from "@/hooks/useResponsive";
 import type { MiraChat } from "../hooks/useMiraChat";
 import { ChatsSidebar } from "./ChatsSidebar";
-import { SubjectGrid } from "./SubjectGrid";
+import { TopicGrid } from "./TopicGrid";
 
 interface StudentHomeProps {
   chat: MiraChat;
@@ -11,6 +11,7 @@ interface StudentHomeProps {
   bp: Breakpoint;
   onProfile: () => void;
   onPerformance: () => void;
+  onAnalytics: () => void;
   onLogout: () => void;
 }
 
@@ -55,7 +56,7 @@ function DesktopHome({
   );
 }
 
-/** Student landing screen: chats rail beside the subject grid (stacks on mobile). */
+/** Student landing screen: chats rail beside the topic grid (stacks on mobile). */
 export function StudentHome({
   chat,
   name,
@@ -63,17 +64,19 @@ export function StudentHome({
   bp,
   onProfile,
   onPerformance,
+  onAnalytics,
   onLogout,
 }: StudentHomeProps) {
   const mobile = bp === "mobile";
   const sidebarWidth = bp === "tablet" ? "268px" : "300px";
   const grid = (
-    <SubjectGrid
+    <TopicGrid
       name={name}
       initials={initials}
-      onOpenSubject={chat.openSubject}
+      onOpenTopic={chat.openTopic}
       onProfile={onProfile}
       onPerformance={onPerformance}
+      onAnalytics={onAnalytics}
       onLogout={onLogout}
     />
   );

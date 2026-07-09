@@ -1,8 +1,8 @@
 import { Badge, type BadgeTone, GlyphTile, IconButton } from "@/components";
-import type { ChatStatus, Subject } from "../types";
+import type { ChatStatus, Topic } from "../types";
 
 interface ChatHeaderProps {
-  subject: Subject;
+  topic: Topic;
   status: ChatStatus;
   title: string;
   onBack: () => void;
@@ -16,13 +16,13 @@ interface HeaderInfo {
 }
 
 function headerInfo(
-  subject: Subject,
+  topic: Topic,
   status: ChatStatus,
   title: string,
 ): HeaderInfo {
   if (status === "draft") {
     return {
-      title: subject.name,
+      title: topic.name,
       subtitle: "New chat",
       pill: "New",
       tone: "neutral",
@@ -30,39 +30,34 @@ function headerInfo(
   }
   if (status === "completed") {
     return {
-      title: title || subject.name,
-      subtitle: `${subject.name} · completed`,
+      title: title || topic.name,
+      subtitle: `${topic.name} · completed`,
       pill: "Completed",
       tone: "green",
     };
   }
   return {
-    title: title || subject.name,
-    subtitle: `${subject.name} · in progress`,
+    title: title || topic.name,
+    subtitle: `${topic.name} · in progress`,
     pill: "In progress",
     tone: "amber",
   };
 }
 
-/** Chat screen header: back, subject glyph, title/subtitle and status pill. */
-export function ChatHeader({
-  subject,
-  status,
-  title,
-  onBack,
-}: ChatHeaderProps) {
-  const info = headerInfo(subject, status, title);
+/** Chat screen header: back, topic glyph, title/subtitle and status pill. */
+export function ChatHeader({ topic, status, title, onBack }: ChatHeaderProps) {
+  const info = headerInfo(topic, status, title);
   return (
     <div className="flex items-center gap-[11px] border-b border-line bg-paper px-[clamp(12px,2vw,20px)] py-[11px]">
       <IconButton
         variant="card"
         onClick={onBack}
-        title="Back to subjects"
+        title="Back to topics"
         className="text-[18px]"
       >
         ‹
       </IconButton>
-      <GlyphTile glyph={subject.glyph} tone={subject.tone} size={34} />
+      <GlyphTile glyph={topic.glyph} tone={topic.tone} size={34} />
       <div className="min-w-0 flex-1">
         <div className="truncate text-[14.5px] font-bold">{info.title}</div>
         <div className="text-[11.5px] text-ink2">{info.subtitle}</div>

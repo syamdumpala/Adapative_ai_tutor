@@ -13,15 +13,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.query import ListParams, Page, apply_search, apply_sort, paginate
 from app.features.auth.models import Student
-from app.features.catalog.models import Subject
+from app.features.catalog.models import Concept, Subject
 from app.features.tutor.models import (
     ConversationHistory,
     Misconception,
+    SessionAnalytics,
     StudentConceptState,
     TutorSession,
 )
 from app.features.tutor.schemas import (
+    AnalyticsPoint,
+    AnalyticsResponse,
     MessageOut,
+    MisconceptionMatrixCell,
     MisconceptionRef,
     PerfInsight,
     PerformanceOut,
@@ -29,7 +33,10 @@ from app.features.tutor.schemas import (
     ProfileOut,
     SessionDetail,
     SessionSummary,
+    SubjectAnalytics,
     SubjectRef,
+    TopicAnalyticsPoint,
+    TopicAnalyticsResponse,
 )
 
 MASTERED_THRESHOLD = 0.8
@@ -324,3 +331,118 @@ async def get_performance(db: AsyncSession, student: Student) -> PerformanceOut:
         insight=insight,
         stats=stats,
     )
+
+
+# --- Learning analytics -------------------------------------------------------
+
+
+async def get_analytics(db: AsyncSession, student: Student) -> AnalyticsResponse:
+    """Plot-ready learning analytics for one student: the raw per-session snapshots
+    (subject, mastery, confidence, misconception category) plus per-subject means —
+    ready to chart subject vs mastery vs confidence."""
+    rows = (
+        (
+            await db.execute(
+                select(SessionAnalytics)
+                .where(SessionAnalytics.student_id == student.id)
+                .order_by(SessionAnalytics.created_at.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    names = await _subject_refs(db, {r.subject_id for r in rows})
+
+    points = [
+        AnalyticsPoint(
+            session_id=r.session_id,
+            subject_id=r.subject_id,
+            subject_name=(names[r.subject_id].name if r.subject_id in names else None),
+            mastery=round(r.mastery, 3),
+            confidence=round(r.confidence, 3),
+            misconception_category=r.misconception_category,
+            misconception=r.misconception,
+            misconception_index=round(r.misconception_index or 0.0, 4),
+            created_at=r.created_at.isoformat() if r.created_at else None,
+        )
+        for r in rows
+    ]
+
+    # Aggregate per subject (mean mastery & confidence across the subject's sessions).
+    grouped: dict[str | None, list[SessionAnalytics]] = {}
+    for r in rows:
+        grouped.setdefault(r.subject_id, []).append(r)
+    by_subject = [
+        SubjectAnalytics(
+            subject_id=sid,
+            subject_name=(names[sid].name if sid in names else None),
+            mastery=round(sum(r.mastery for r in group) / len(group), 3),
+            confidence=round(sum(r.confidence for r in group) / len(group), 3),
+            sessions=len(group),
+        )
+        for sid, group in grouped.items()
+    ]
+    by_subject.sort(key=lambda s: s.subject_name or s.subject_id or "")
+
+    # Subject × misconception-category matrix: how many sessions fell into each
+    # (subject, category) bucket — plot-ready as a heatmap / grouped bars.
+    counts: dict[tuple[str | None, str | None], int] = {}
+    for r in rows:
+        key = (r.subject_id, r.misconception_category)
+        counts[key] = counts.get(key, 0) + 1
+    misconception_matrix = [
+        MisconceptionMatrixCell(
+            subject_id=sid,
+            subject_name=(names[sid].name if sid in names else None),
+            misconception_category=category,
+            count=count,
+        )
+        for (sid, category), count in counts.items()
+    ]
+    misconception_matrix.sort(
+        key=lambda c: (c.subject_name or c.subject_id or "", c.misconception_category or "")
+    )
+
+    return AnalyticsResponse(
+        by_subject=by_subject, points=points, misconception_matrix=misconception_matrix
+    )
+
+
+async def get_topic_analytics(db: AsyncSession, student: Student) -> TopicAnalyticsResponse:
+    """Per-topic (concept-grain) analytics for one student: mastery, confidence,
+    understanding, effort (attempts), streak and review timing for every concept the
+    student has engaged with — the grain the per-topic performance charts read from.
+
+    A student-scoped mirror of the teacher's ``list_student_topics`` join, carrying the
+    richer per-concept state the charts need.
+    """
+    rows = (
+        await db.execute(
+            select(Concept, StudentConceptState)
+            .join(StudentConceptState, StudentConceptState.concept_id == Concept.id)
+            .where(StudentConceptState.student_id == student.id)
+            .order_by(Concept.position.asc())
+        )
+    ).all()
+    subjects = await _subject_refs(db, {c.subject_id for c, _ in rows})
+
+    topics = [
+        TopicAnalyticsPoint(
+            concept_id=c.id,
+            concept_name=c.name,
+            subject_id=c.subject_id,
+            subject_name=(subjects[c.subject_id].name if c.subject_id in subjects else None),
+            glyph=c.glyph,
+            tone=c.tone,
+            difficulty_band=c.difficulty_band,
+            mastery=round(state.mastery, 3),
+            confidence=round(state.confidence, 3),
+            understanding=state.understanding,
+            attempts=state.attempts,
+            streak=state.streak,
+            last_seen=state.last_seen.isoformat() if state.last_seen else None,
+            next_review=state.next_review.isoformat() if state.next_review else None,
+        )
+        for c, state in rows
+    ]
+    return TopicAnalyticsResponse(topics=topics)

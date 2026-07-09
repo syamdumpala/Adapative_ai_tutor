@@ -39,17 +39,24 @@ Status legend: ✅ done · 🟡 scaffold/partial · 🚧 in progress · ⛔ depr
 
 - **Path:** `src/features/tutor/`
 - **Responsibility:** the Mira adaptive-tutor experience.
-  - `TutorApp.tsx` + `Topbar.tsx` + `hooks/useTutorShell.ts` — app shell, role
-    toggle, restart/simulate/toast, profile modal.
-  - `student/` — home (`StudentHome`, `ChatsSidebar`, `SubjectGrid`,
-    `ProfileMenu`), chat (`ChatView`, `ChatHeader`, `Composer`, banners,
-    `StudentModal`), and `messages/` (diagnosis, visual hint, worked example,
-    quiz, revision, typing).
+  - `TutorApp.tsx` + `Topbar.tsx` + `AccountModal.tsx` + `hooks/useTutorShell.ts`
+    — app shell, toast, and the shared profile/performance modal (both roles).
+  - `student/` — home (`StudentHome`, `ChatsSidebar`, `TopicGrid` — searchable
+    via the shared `SearchInput`, `TopicCard`, `ProfileMenu`), chat (`ChatView`,
+    `ChatHeader`, `Composer`, banners),
+    `messages/` (diagnosis, visual hint, worked example, quiz, revision, typing),
+    and `analytics/` — the "My progress" page (`StudentAnalytics` + `OverviewPanel`
+    / `TopicsPanel`, `charts/` Recharts components, `chartTheme.ts`, `ChartCard`)
+    fed by `hooks/useAnalytics.ts` off `GET /me/analytics` + `GET /me/topics`.
   - `teacher/` — `TeacherDashboard`, `TeacherHome` (`TopicPanel`,
-    `StudentPanel`), `TopicDetail`, `StudentDetail`, `TeacherToolbar`.
+    `StudentPanel`), `TopicDetail`, `StudentDetail`, `TeacherToolbar` (back-nav
+    + `TeacherAccountMenu`), and the catalog manager `TopicCatalog` +
+    `TopicCreateModal` (`topicForm.ts` hook).
   - `hooks/useMiraChat.ts` + `hooks/chatActions.ts` + `state/chatReducer.ts` +
     `state/chatHelpers.ts` — the conversation engine (reducer + async dialogue).
-  - `data/` — `subjects`, `seeds`, `dialogue` (+ `dialogueGeneric`), `quizzes`,
+  - `api/catalog.ts` — the topic-catalog client (`fetchTopics`, `createTopic`);
+    the single seam mapping the backend's `subject` vocabulary onto `Topic`.
+  - `data/` — `topics`, `seeds`, `dialogue` (+ `dialogueGeneric`), `quizzes`,
     `teacher`, `student`; `types.ts` for shared types.
 - **Dependencies:** `@/components`, `@/lib/*`, `@/hooks/*`. **No backend calls
   yet** — all data is local/seeded.

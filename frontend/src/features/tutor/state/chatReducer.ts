@@ -9,11 +9,11 @@ export type { ChatEngineState } from "./chatHelpers";
 
 export type ChatAction =
   | { type: "setList"; chats: Record<string, ChatSummary>; order: string[] }
-  | { type: "openDraft"; subjectId: string }
+  | { type: "openDraft"; topicId: string }
   | {
       type: "openExisting";
       id: string;
-      subjectId: string;
+      topicId: string;
       title: string;
       status: ChatStatus;
       hintRung: number;
@@ -38,7 +38,7 @@ function userMessage(state: ChatEngineState, text: string): ChatMessage {
 // A one-off, client-only welcome shown when a fresh chat is opened. It is purely
 // a UX touch — never sent to or stored by the backend.
 const GREETING =
-  "Hi! What would you like to work on today? Ask me anything about this topic — I'll guide you with hints, not just the answer.";
+  "Hi! What would you like to understand today? Ask me anything about this topic — I'll guide you with hints, not just the answer.";
 
 function greetingMessage(): ChatMessage {
   return { id: 0, from: "tutor", kind: "text", text: GREETING };
@@ -61,7 +61,7 @@ const HANDLERS: Handlers = {
     ...state,
     activeChatId: NEW_CHAT,
     sessionId: null,
-    subjectId: action.subjectId,
+    topicId: action.topicId,
     title: "",
     status: "draft",
     locked: false,
@@ -74,7 +74,7 @@ const HANDLERS: Handlers = {
     ...state,
     activeChatId: action.id,
     sessionId: action.id,
-    subjectId: action.subjectId,
+    topicId: action.topicId,
     title: action.title,
     status: action.status,
     locked: action.status === "completed",
@@ -109,7 +109,7 @@ const HANDLERS: Handlers = {
     const id = action.sessionId;
     const summary: ChatSummary = {
       id,
-      subjectId: state.subjectId,
+      topicId: state.topicId,
       title: state.title || "New chat",
       status: action.status,
       hintRung: action.hintRung,

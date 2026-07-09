@@ -3,7 +3,7 @@ import type { ChatMessage, ChatStatus } from "../types";
 /** A conversation as listed in the "Your chats" rail. */
 export interface ChatSummary {
   id: string;
-  subjectId: string;
+  topicId: string;
   title: string;
   status: ChatStatus;
   hintRung: number;
@@ -15,7 +15,7 @@ export interface ChatEngineState {
   order: string[];
   activeChatId: string | null; // null → home screen
   sessionId: string | null; // backend session id for the open chat
-  subjectId: string;
+  topicId: string;
   title: string;
   status: ChatStatus;
   locked: boolean; // completed conversations are read-only
@@ -35,7 +35,7 @@ export function initialChatState(): ChatEngineState {
     order: [],
     activeChatId: null,
     sessionId: null,
-    subjectId: "fractions",
+    topicId: "1",
     title: "",
     status: "draft",
     locked: false,

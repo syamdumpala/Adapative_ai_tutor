@@ -10,6 +10,7 @@ interface ProfileMenuProps {
   initials: string;
   onProfile: () => void;
   onPerformance: () => void;
+  onAnalytics: () => void;
   onLogout: () => void;
 }
 
@@ -52,6 +53,7 @@ function AccountDropdown({
   close,
   onProfile,
   onPerformance,
+  onAnalytics,
   onLogout,
 }: ProfileMenuProps & { close: () => void }) {
   const run = (action: () => void) => () => {
@@ -80,6 +82,9 @@ function AccountDropdown({
           <MenuItem icon="▦" onClick={run(onPerformance)}>
             Performance
           </MenuItem>
+          <MenuItem icon="▩" onClick={run(onAnalytics)}>
+            My progress
+          </MenuItem>
         </div>
         <div className="border-t border-line p-[6px]">
           <MenuItem icon="⏻" danger onClick={run(onLogout)}>
@@ -97,6 +102,7 @@ export function ProfileMenu({
   initials,
   onProfile,
   onPerformance,
+  onAnalytics,
   onLogout,
 }: ProfileMenuProps) {
   const [open, setOpen] = useState(false);
@@ -121,6 +127,7 @@ export function ProfileMenu({
           close={() => setOpen(false)}
           onProfile={onProfile}
           onPerformance={onPerformance}
+          onAnalytics={onAnalytics}
           onLogout={onLogout}
         />
       )}

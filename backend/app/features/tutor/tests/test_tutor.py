@@ -123,6 +123,52 @@ async def test_correct_answer_completes(client, mock_llm):
     assert body["next_review"] is not None
 
 
+async def test_completing_a_session_writes_analytics(seeded_client, mock_llm):
+    """Reaching history mode (completion) snapshots subject/mastery/confidence for charts."""
+    headers = await _auth_header(seeded_client)
+    # Start a session scoped to a real subject (seeded Fractions has id "1"), drive
+    # the diagnostic phase, then answer.
+    first = (
+        await seeded_client.post(
+            "/tutor/ask",
+            json={"question": "How do I add 4/5 and 3/5?", "subject_id": "1"},
+            headers=headers,
+        )
+    ).json()
+    sid = first["session_id"]
+    for i in range(3):
+        await _ask(seeded_client, headers, f"my answer {i}", sid)
+    done = await _ask(seeded_client, headers, "the answer is 42", sid)
+    assert done["action"] == "completed"
+
+    body = (await seeded_client.get("/me/analytics", headers=headers)).json()
+    assert len(body["points"]) == 1
+    pt = body["points"][0]
+    assert pt["session_id"] == sid
+    assert pt["subject_id"] == "1"
+    assert pt["subject_name"] == "Fractions"
+    assert 0.0 <= pt["mastery"] <= 1.0
+    assert 0.0 <= pt["confidence"] <= 1.0
+    # The misconception value (name) and its category are both captured.
+    assert pt["misconception"] == "Missing prerequisite knowledge"
+    assert pt["misconception_category"] == "missing_prerequisite"
+    # Numeric Misconfidence Index: mᵢ = −C·(C − 0.9) for a correct completion (C = confidence).
+    c = pt["confidence"]
+    assert pt["misconception_index"] == pytest.approx(-c * (c - 0.9), abs=0.01)
+
+    assert len(body["by_subject"]) == 1
+    agg = body["by_subject"][0]
+    assert agg["subject_id"] == "1"
+    assert agg["sessions"] == 1
+
+    # Subject × misconception-category matrix has one bucket for this session.
+    assert len(body["misconception_matrix"]) == 1
+    cell = body["misconception_matrix"][0]
+    assert cell["subject_id"] == "1"
+    assert cell["misconception_category"] == "missing_prerequisite"
+    assert cell["count"] == 1
+
+
 async def test_unlimited_hints_no_escalation_on_repeated_wrong(client, mock_llm):
     # Hints are unlimited now: repeated wrong answers keep producing new hints and never
     # auto-escalate.

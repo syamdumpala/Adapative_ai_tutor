@@ -16,9 +16,6 @@ export function TeacherHome({ students, bp, nav }: TeacherHomeProps) {
   return (
     <>
       <div className="animate-fade-up">
-        <div className="mb-[7px] font-mono text-[10px] uppercase tracking-[0.14em] text-ink3">
-          Teacher · Period 3
-        </div>
         <h1 className="text-[clamp(26px,4vw,36px)] font-extrabold">
           Ms. Alvarez · Fractions
         </h1>
