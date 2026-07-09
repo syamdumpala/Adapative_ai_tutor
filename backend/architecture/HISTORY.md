@@ -12,6 +12,33 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-07-09 — Agents via `create_agent`, JSON-restricted output, RAG removed
+**Author:** AI (Claude)
+**Summary:** Each LLM-backed agent is now built with LangChain's `create_agent`
+and restricted to emit JSON matching a per-agent Pydantic schema. A new
+`graph/llm.run_agent(stage, schema, system, user)` seam compiles/caches one
+`create_agent` per system prompt and enforces the schema: it uses `response_format`
+when the chat model supports structured output (API-key providers), and otherwise
+(the dev-only Claude subscription model, which cannot bind tools) appends the schema
+to the prompt at call time and validates the reply back into it. The old
+`llm.complete()` text seam was removed. Prompts were extracted verbatim into a new
+`graph/prompts/` package (one module per agent, SYSTEM + USER templates) — wording
+unchanged. The **RAG node/stub was removed** entirely (node, graph wiring, router
+branch, `docs` state field, evaluator's `docs` clearing, and the response `sources`
+population).
+**Files:**
+- Added: `app/features/tutor/graph/prompts/{__init__,diagnostic,misconception,planner,hint,guard,evaluator}.py`,
+  `app/features/tutor/graph/schemas.py`.
+- Modified: `graph/llm.py` (new `run_agent`, removed `complete`), all six LLM nodes
+  (`diagnostic,misconception,planner,hint,guard,evaluator`), `graph/graph.py`,
+  `graph/router.py`, `graph/state.py` (dropped `docs`), `graph/trace.py` (docstring),
+  `service.py` (dropped `sources` population), `tests/test_tutor.py` (mock the
+  `run_agent` seam), `pyproject.toml` (E501 ignore for `graph/prompts/*`).
+- Removed: `graph/nodes/rag.py`.
+**Tests:** `make test` green (24 passing); ruff clean. Verified the subscription
+schema-hint path end-to-end (noisy markdown/extra-key reply → validated restricted
+JSON) and that the graph compiles without the `rag` node.
+
 ## 2026-07-08 — Interactive Diagnostic phase (doctor-style probing)
 **Author:** AI (Claude)
 **Summary:** Turned the Diagnostic agent into an interactive, multi-turn probing phase

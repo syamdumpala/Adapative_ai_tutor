@@ -17,7 +17,6 @@ from app.features.tutor.graph.nodes.memory import memory_node
 from app.features.tutor.graph.nodes.misconception import misconception_node
 from app.features.tutor.graph.nodes.planner import planner_node
 from app.features.tutor.graph.nodes.profile import profile_node
-from app.features.tutor.graph.nodes.rag import rag_node
 from app.features.tutor.graph.nodes.revision import revision_node
 from app.features.tutor.graph.router import route
 from app.features.tutor.graph.state import TutorState
@@ -35,7 +34,6 @@ def build_graph():
     graph.add_node("diagnostic", diagnostic_node)
     graph.add_node("misconception", misconception_node)
     graph.add_node("planner", planner_node)
-    graph.add_node("rag", rag_node)
     graph.add_node("hint", hint_node)
     graph.add_node("guard", guard_node)
     graph.add_node("evaluator", evaluator_node)
@@ -52,7 +50,6 @@ def build_graph():
             "diagnostic": "diagnostic",
             "misconception": "misconception",
             "planner": "planner",
-            "rag": "rag",
             "hint": "hint",
             "evaluator": "evaluator",
             "memory": "memory",
@@ -62,7 +59,7 @@ def build_graph():
     )
 
     # Workers return to the supervisor to be re-routed.
-    for node in ["profile", "diagnostic", "misconception", "planner", "rag", "evaluator"]:
+    for node in ["profile", "diagnostic", "misconception", "planner", "evaluator"]:
         graph.add_edge(node, "supervisor")
     graph.add_edge("hint", "guard")
     graph.add_edge("guard", "supervisor")

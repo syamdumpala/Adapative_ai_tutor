@@ -26,7 +26,6 @@ class TutorState(TypedDict, total=False):
         dict | None
     )  # full classification {misconception, category, confidence, evidence}
     tutor_plan: dict | None  # {difficulty, hint_level, plan}
-    docs: list | None  # RAG documents [{title, content}]
     hint: str | None
     hint_level: int
     hint_attempts: int
@@ -62,7 +61,6 @@ def new_state(student_id: int, session_id: str, concept: str) -> TutorState:
         "misconception": None,
         "misconception_detail": None,
         "tutor_plan": None,
-        "docs": None,
         "hint": None,
         "hint_level": 1,
         "hint_attempts": 0,

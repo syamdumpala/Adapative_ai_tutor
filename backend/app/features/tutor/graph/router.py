@@ -4,7 +4,6 @@ if profile missing        -> profile
 elif diagnostic missing   -> diagnostic
 elif misconception missing-> misconception
 elif tutor_plan missing   -> planner
-elif docs missing         -> rag
 elif hint missing         -> hint
 elif evaluation missing   -> evaluator (only if the student has answered; else pause)
 elif wrong and failures<3 -> planner   (evaluator normally clears fields itself)
@@ -30,8 +29,6 @@ def route(state: TutorState) -> str:
         return "misconception"
     if state.get("tutor_plan") is None:
         return "planner"
-    if state.get("docs") is None:
-        return "rag"
     if state.get("hint") is None:
         return "hint"
 

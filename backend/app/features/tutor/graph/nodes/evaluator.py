@@ -1,18 +1,14 @@
 """Evaluator — checks the student's answer, records evidence, computes confidence.
 
-On a wrong answer (with failures < 3 and no distress) it clears the plan/docs/hint
+On a wrong answer (with failures < 3 and no distress) it clears the plan/hint
 so the supervisor loops back to the Planner for another attempt (section 2 of the guide).
 """
 
 from app.features.tutor.graph import llm
+from app.features.tutor.graph.prompts import evaluator as prompts
+from app.features.tutor.graph.schemas import EvaluationResult
 from app.features.tutor.models import EvidenceEvent
 from app.features.tutor.repository import apply_evaluation
-
-_SYSTEM = (
-    "You are the Evaluator. Judge whether the student's answer is correct for the "
-    'concept. Respond as JSON: {"correct": true|false, "feedback": "one short '
-    'sentence, encouraging, without giving away the answer if wrong"}.'
-)
 
 
 def _current_confidence(self_rating: int, correct: bool) -> float:
@@ -27,13 +23,14 @@ async def evaluator_node(state, config):
     db = config["configurable"]["db"]
     student = config["configurable"]["student"]
 
-    raw = await llm.complete(
+    data = await llm.run_agent(
         "evaluator",
-        _SYSTEM,
-        f"Concept: {state['concept']}\nLesson plan: {(state.get('tutor_plan') or {}).get('plan')}\n"
-        f"Student answer: {state['message']}",
+        EvaluationResult,
+        prompts.SYSTEM,
+        prompts.user(
+            state["concept"], (state.get("tutor_plan") or {}).get("plan"), state["message"]
+        ),
     )
-    data = llm.parse_json(raw, {"correct": False, "feedback": raw or "Let's review that."})
     correct = bool(data.get("correct"))
     feedback = data.get("feedback", "")
     current_confidence = _current_confidence(state.get("self_rating", 3), correct)
@@ -71,7 +68,6 @@ async def evaluator_node(state, config):
             updates.update(
                 {
                     "tutor_plan": None,
-                    "docs": None,
                     "hint": None,
                     "hint_attempts": 0,
                     "evaluation": None,

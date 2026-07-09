@@ -4,22 +4,20 @@ Does NOT create hints itself. Caps regeneration attempts to avoid loops.
 """
 
 from app.features.tutor.graph import llm
-
-_SYSTEM = (
-    "You are the Hint Guard. Decide whether the hint is safe to show: it must NOT reveal "
-    "the final answer and must stay on-topic. Reply exactly 'APPROVE' or 'REJECT'."
-)
+from app.features.tutor.graph.prompts import guard as prompts
+from app.features.tutor.graph.schemas import GuardResult
 
 _MAX_ATTEMPTS = 2
 
 
 async def guard_node(state, config):
-    verdict = await llm.complete(
+    result = await llm.run_agent(
         "guard",
-        _SYSTEM,
-        f"Concept: {state['concept']}\nHint: {state.get('hint')}",
+        GuardResult,
+        prompts.SYSTEM,
+        prompts.user(state["concept"], state.get("hint")),
     )
-    approved = not verdict.strip().upper().startswith("REJECT")
+    approved = not str(result["verdict"]).strip().upper().startswith("REJECT")
     attempts = state.get("hint_attempts", 0)
 
     if approved or attempts + 1 >= _MAX_ATTEMPTS:

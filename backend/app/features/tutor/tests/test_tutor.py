@@ -1,12 +1,11 @@
 """Tests for the multi-agent tutor graph.
 
-The LLM is mocked at a single seam (`app.features.tutor.graph.llm.complete`), so no
-real Claude call is made. The flow now begins with an interactive Diagnostic phase:
-the tutor asks 3 probing questions (one per turn) before the first hint. The evaluator
-mock treats any answer containing 'wrong' as incorrect.
+The agents are mocked at a single seam (`app.features.tutor.graph.llm.run_agent`), so
+no real Claude call is made. Each agent returns a dict matching its JSON response
+schema. The flow begins with an interactive Diagnostic phase: the tutor asks 3 probing
+questions (one per turn) before the first hint. The evaluator mock treats any answer
+containing 'wrong' as incorrect.
 """
-
-import json
 
 import pytest
 
@@ -18,32 +17,41 @@ REGISTRATION = {
 }
 
 
-async def _fake_complete(stage: str, system: str, user: str) -> str:
+async def _fake_run_agent(stage: str, schema, system: str, user: str) -> dict:
     if stage == "diagnostic":
         # The consolidate prompt asks to "summarize"; otherwise it's a probing question.
         if "summarize" in system.lower():
-            return "The student is shaky on the prerequisite."
-        return "What do you already know about this topic?"
+            return {"observations": "The student is shaky on the prerequisite."}
+        return {"question": "What do you already know about this topic?"}
     if stage == "misconception":
-        return "missing_prerequisite"
+        return {
+            "misconception": "Missing prerequisite knowledge",
+            "category": "missing_prerequisite",
+            "confidence": 0.9,
+            "evidence": "Student cannot recall the definition.",
+        }
     if stage == "planner":
-        return "- Recall the definition\n- Work a small example"
+        return {
+            "difficulty": "Easy",
+            "teaching_style": "Conceptual",
+            "hint_goal": "Recall the definition",
+            "hint_level": 1,
+            "reason": "Low mastery on the prerequisite.",
+        }
     if stage == "hint":
-        return "Think about what stays constant as the input changes."
+        return {"hint": "Think about what stays constant as the input changes."}
     if stage == "guard":
-        return "APPROVE"
+        return {"verdict": "APPROVE"}
     if stage == "evaluator":
         correct = "wrong" not in user.lower()
-        return json.dumps(
-            {"correct": correct, "feedback": "Nice work." if correct else "Not quite yet."}
-        )
-    return ""
+        return {"correct": correct, "feedback": "Nice work." if correct else "Not quite yet."}
+    return {}
 
 
 @pytest.fixture
 def mock_llm(monkeypatch):
     monkeypatch.setattr("app.features.tutor.routes.llm_is_configured", lambda: True)
-    monkeypatch.setattr("app.features.tutor.graph.llm.complete", _fake_complete)
+    monkeypatch.setattr("app.features.tutor.graph.llm.run_agent", _fake_run_agent)
 
 
 async def _auth_header(client):
@@ -101,7 +109,6 @@ async def test_diagnostic_phase_leads_to_hint(client, mock_llm):
     _, hint = await _reach_first_hint(client, headers)
     assert hint["action"] == "hint"
     assert "Hint" in hint["message"]
-    assert hint["sources"]
 
 
 async def test_correct_answer_completes(client, mock_llm):

@@ -146,6 +146,5 @@ async def ask_question(
         mastery=profile.get("mastery"),
         confidence=profile.get("confidence"),
         next_review=result.get("next_review"),
-        sources=[d.get("title", "") for d in (result.get("docs") or [])],
         agents=agent_io if settings.debug_agent_io else None,
     )

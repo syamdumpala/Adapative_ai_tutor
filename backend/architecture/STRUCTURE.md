@@ -35,12 +35,14 @@ backend/
 │           ├── routes.py           # /tutor/ask (multi-turn)
 │           ├── graph/              # LangGraph multi-agent tutor
 │           │   ├── state.py        # TutorState, new_state(), detect_distress()
-│           │   ├── llm.py          # shared complete(stage,...) seam + parse_json (mock point)
+│           │   ├── llm.py          # run_agent(stage,schema,...) seam via create_agent (mock point)
+│           │   ├── schemas.py      # per-agent Pydantic response schemas (JSON restriction)
 │           │   ├── router.py       # supervisor routing (conditional edges per guide §2)
 │           │   ├── graph.py        # build_graph() -> compiled `tutor_graph`
+│           │   ├── prompts/        # one module per agent: SYSTEM + USER prompt templates
 │           │   └── nodes/          # one file per agent
 │           │       ├── profile.py       diagnostic.py   misconception.py
-│           │       ├── planner.py       rag.py (stub)   hint.py   guard.py
+│           │       ├── planner.py       hint.py   guard.py
 │           │       ├── evaluator.py     memory.py       revision.py   escalation.py
 │           └── tests/
 │               └── test_tutor.py

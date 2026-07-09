@@ -1,7 +1,7 @@
 """Per-request capture of each agent's LLM input and output.
 
 A lightweight, in-process alternative to LangSmith for seeing exactly what each
-agent received and produced. `graph/llm.complete()` records every call; the service
+agent received and produced. `graph/llm.run_agent()` records every call; the service
 starts a capture before running the graph and reads the result back as a dict:
 
     {

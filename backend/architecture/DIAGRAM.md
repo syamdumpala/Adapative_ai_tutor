@@ -70,7 +70,6 @@ flowchart TD
     SUP -->|diagnostic missing| DIA[Diagnostic]
     SUP -->|misconception missing| MIS[Misconception]
     SUP -->|plan missing| PLA[Planner]
-    SUP -->|docs missing| RAG[RAG stub]
     SUP -->|hint missing| HIN[Hint]
     SUP -->|answered| EVA[Evaluator]
     SUP -->|correct| MEM[Memory]
@@ -81,7 +80,6 @@ flowchart TD
     DIA --> SUP
     MIS --> SUP
     PLA --> SUP
-    RAG --> SUP
     HIN --> GUA[Hint Guard]
     GUA --> SUP
     EVA --> SUP
