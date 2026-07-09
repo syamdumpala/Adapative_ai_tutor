@@ -7,6 +7,7 @@ async def profile_node(state, config):
     db = config["configurable"]["db"]
     student = config["configurable"]["student"]
     profile = await get_or_create_profile(db, student.id)
+    print(profile)
     return {
         "profile": {
             "mastery": profile.mastery,

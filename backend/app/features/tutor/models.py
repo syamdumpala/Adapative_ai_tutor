@@ -139,6 +139,9 @@ class ConversationHistory(Base):
     )
     role: Mapped[str] = mapped_column(String(16))  # user | assistant
     kind: Mapped[str] = mapped_column(String(16), default="text")  # text|diagnosis|quiz|worked|...
+    # Event type for the conversation API: question | diagnostic_question |
+    # diagnostic_answer | hint | hint_answer | evaluation | completed | escalation.
+    kind: Mapped[str | None] = mapped_column(String(32), nullable=True)
     content: Mapped[str] = mapped_column(Text)
     payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # structured card data
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

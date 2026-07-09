@@ -17,6 +17,7 @@ async def hint_node(state, config):
         HintResult,
         prompts.SYSTEM,
         prompts.user(state.get("subject"), state["concept"], plan, level, hint),
-        # state["concept"], level, plan.get("plan")
+        history=config["configurable"].get("history"),
+        subject=state.get("subject"),
     )
     return {"hint": result["hint"]}

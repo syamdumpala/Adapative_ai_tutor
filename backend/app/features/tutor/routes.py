@@ -10,6 +10,7 @@ from app.features.tutor import reads
 from app.features.tutor.schemas import (
     AskRequest,
     AskResponse,
+    ConversationResponse,
     MessageOut,
     PerformanceOut,
     ProfileOut,
@@ -20,6 +21,7 @@ from app.features.tutor.service import (
     SessionClosedError,
     SessionNotFoundError,
     ask_question,
+    get_session_conversation,
 )
 
 router = APIRouter(prefix="/tutor", tags=["tutor"])
@@ -128,3 +130,19 @@ async def my_performance(
 ):
     """The student performance record: accuracy, mastery, streak, misconception status."""
     return await reads.get_performance(db, current)
+
+
+@router.get("/sessions/{session_id}/conversation", response_model=ConversationResponse)
+async def get_conversation(
+    session_id: str,
+    current: Student = Depends(get_current_student),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch the full typed conversation for one session: the initial question, every
+    diagnostic question/answer, every hint and hint answer, and the outcome."""
+    try:
+        return await get_session_conversation(db, current, session_id)
+    except SessionNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Session not found"
+        ) from None
