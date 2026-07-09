@@ -1,7 +1,7 @@
-import { Badge, GlyphTile, ProgressBar } from "@/components";
+import { Badge, GlyphTile } from "@/components";
 import { cn } from "@/lib/cn";
 import { truncateWords } from "@/lib/text";
-import { ctaTextTone, progressFillTone } from "@/lib/tones";
+import { ctaTextTone } from "@/lib/tones";
 import type { Topic } from "../types";
 
 interface TopicCardProps {
@@ -38,13 +38,6 @@ export function TopicCard({ topic, onClick }: TopicCardProps) {
           {started ? "Continue" : "Start"} →
         </span>
       </div>
-      {started && (
-        <ProgressBar
-          value={topic.progress}
-          fillClassName={progressFillTone[topic.tone]}
-          className="mt-[13px]"
-        />
-      )}
     </button>
   );
 }

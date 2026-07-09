@@ -13,7 +13,12 @@ from app.features.tutor.graph import trace
 from app.features.tutor.graph.graph import tutor_graph
 from app.features.tutor.graph.state import detect_distress, new_state, serialize
 from app.features.tutor.models import ConversationHistory, TutorSession
-from app.features.tutor.repository import get_conversation, get_session, list_sessions
+from app.features.tutor.repository import (
+    get_conversation,
+    get_session,
+    list_sessions,
+    resolve_concept_id,
+)
 from app.features.tutor.schemas import (
     AskResponse,
     ConversationMessage,
@@ -96,6 +101,9 @@ async def ask_question(
         # Existing session (incl. older ones): fetch the subject from its stored
         # subject_id and put it in the state so every agent stays subject-aware.
         state["subject"] = subject
+        # Backfill the per-topic concept for legacy sessions started before this existed.
+        if not state.get("concept_id"):
+            state["concept_id"] = await resolve_concept_id(db, session.subject_id, session.concept)
         raw_awaiting = (session.state or {}).get("awaiting")
         # Normalize (legacy sessions stored a bool for "awaiting a hint answer").
         awaiting = (
@@ -119,6 +127,8 @@ async def ask_question(
         # New session: fetch the subject from the subject_id we just stored and put it
         # in the state so every agent answers in the right subject from turn one.
         state["subject"] = subject
+        # Map the session to a catalog concept so per-topic mastery updates as it runs.
+        state["concept_id"] = await resolve_concept_id(db, session.subject_id, question)
         awaiting = None
 
     # Turn inputs

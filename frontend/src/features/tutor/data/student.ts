@@ -2,7 +2,7 @@
 export const DEFAULT_STUDENT_NAME = "Maya";
 
 /** Surname appended to the student's first name for display. */
-export const STUDENT_LAST_NAME = "Chen";
+export const STUDENT_LAST_NAME = "";
 
 /** Two-letter initials from a name, mirroring the prototype's rule. */
 export function initialsOf(name: string): string {

@@ -1,14 +1,46 @@
 """Async DB helpers used by graph nodes and the service."""
 
+import re
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.catalog.models import Concept
 from app.features.tutor.models import (
     ConversationHistory,
     EvidenceEvent,
     SessionAnalytics,
+    StudentConceptState,
     StudentProfile,
     TutorSession,
+)
+
+# Very common words that carry no topic signal (kept tiny — the fallback handles misses).
+_STOPWORDS = frozenset(
+    {
+        "how",
+        "the",
+        "and",
+        "you",
+        "what",
+        "why",
+        "does",
+        "this",
+        "that",
+        "with",
+        "for",
+        "are",
+        "can",
+        "not",
+        "would",
+        "should",
+        "when",
+        "which",
+        "into",
+        "your",
+        "about",
+    }
 )
 
 
@@ -170,3 +202,90 @@ async def consolidate_misconceptions(db: AsyncSession, student_id: int) -> list[
         for error_type, count in result.all()
         if error_type and error_type != "none" and count >= 2
     ]
+
+
+def _keywords(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z]+", text.lower()) if len(w) >= 3 and w not in _STOPWORDS}
+
+
+def _stem_match(a: str, b: str) -> bool:
+    """Crude stemmer: two words match if they share a long-enough leading run, so
+    'compare'/'comparing' and 'add'/'adding' both count while unrelated words don't."""
+    shared = 0
+    for ca, cb in zip(a, b, strict=False):
+        if ca != cb:
+            break
+        shared += 1
+    return shared >= min(len(a), len(b), 4)
+
+
+async def resolve_concept_id(db: AsyncSession, subject_id: str | None, question: str) -> str | None:
+    """Best-effort map a (subject, free-text question) to a catalog concept id.
+
+    Live sessions are subject-scoped with a free-text question, but per-topic state is
+    keyed by concept. Score each of the subject's concepts by prefix-overlap between the
+    question and the concept's name+blurb, and pick the best; fall back to the subject's
+    first (entry-level) concept when nothing matches. Returns None if the subject has no
+    concepts. Deterministic (no LLM) so it stays cheap and testable; can be upgraded to
+    an LLM classifier later.
+    """
+    if not subject_id:
+        return None
+    concepts = (
+        (
+            await db.execute(
+                select(Concept)
+                .where(Concept.subject_id == subject_id)
+                .order_by(Concept.position.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not concepts:
+        return None
+    q_words = _keywords(question)
+    best, best_score = concepts[0], 0
+    for concept in concepts:
+        name_words = _keywords(f"{concept.name} {concept.short}")
+        score = sum(1 for nw in name_words if any(_stem_match(nw, qw) for qw in q_words))
+        if score > best_score:
+            best, best_score = concept, score
+    return best.id
+
+
+async def apply_concept_evaluation(
+    db: AsyncSession,
+    student_id: int,
+    concept_id: str,
+    current_confidence: float,
+    correct: bool,
+) -> None:
+    """Upsert the per-concept state after ONE evaluated answer — the grain the student's
+    By-topic charts (and the teacher roster) read. Mirrors ``apply_evaluation`` but keyed
+    by concept: EMA mastery/confidence, an attempt count, a correctness streak, an
+    understanding band, and a spaced-repetition ``next_review`` (sooner when shaky).
+    """
+    row = (
+        await db.execute(
+            select(StudentConceptState).where(
+                StudentConceptState.student_id == student_id,
+                StudentConceptState.concept_id == concept_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        row = StudentConceptState(
+            student_id=student_id, concept_id=concept_id, mastery=0.3, confidence=0.3
+        )
+        db.add(row)
+
+    row.confidence = round(0.8 * row.confidence + 0.2 * current_confidence, 3)
+    row.mastery = round(min(1.0, max(0.0, 0.8 * row.mastery + 0.2 * (1.0 if correct else 0.0))), 3)
+    row.attempts = (row.attempts or 0) + 1
+    row.streak = (row.streak or 0) + 1 if correct else 0
+    row.understanding = "yes" if row.mastery >= 0.66 else "partial" if row.mastery >= 0.4 else "no"
+    now = datetime.now(UTC)
+    row.last_seen = now
+    row.next_review = now + timedelta(days=1 if not correct else 1 + round(row.mastery * 6))
+    await db.flush()

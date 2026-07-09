@@ -27,14 +27,14 @@ export function ChartCard({
 }: ChartCardProps) {
   return (
     <Card className="flex animate-fade-up flex-col rounded-md p-[clamp(14px,1.8vw,20px)]">
-      <div className="mb-1">
-        <div className="flex items-center gap-[6px]">
+      <div className="mb-1 flex items-start justify-between gap-2">
+        <div>
           <h3 className="text-[14px] font-bold text-ink">{title}</h3>
-          {info && <InfoDot text={info} />}
+          {subtitle && (
+            <p className="mt-[2px] text-[12px] text-ink2">{subtitle}</p>
+          )}
         </div>
-        {subtitle && (
-          <p className="mt-[2px] text-[12px] text-ink2">{subtitle}</p>
-        )}
+        {info && <InfoDot text={info} />}
       </div>
       {isEmpty ? (
         <div

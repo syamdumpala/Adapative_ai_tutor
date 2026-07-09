@@ -8,7 +8,7 @@ from app.features.tutor.graph import llm
 from app.features.tutor.graph.prompts import evaluator as prompts
 from app.features.tutor.graph.schemas import EvaluationResult
 from app.features.tutor.models import EvidenceEvent
-from app.features.tutor.repository import apply_evaluation
+from app.features.tutor.repository import apply_concept_evaluation, apply_evaluation
 
 
 def _current_confidence(self_rating: int, correct: bool) -> float:
@@ -57,6 +57,12 @@ async def evaluator_node(state, config):
 
     # Update the long-term profile on EVERY answer so the next session sees it.
     profile = await apply_evaluation(db, student.id, current_confidence, correct)
+
+    # Mirror that update onto the per-concept state (the grain the By-topic charts read),
+    # so live tutoring — not just the seed — moves the student's topic mastery.
+    concept_id = state.get("concept_id")
+    if concept_id:
+        await apply_concept_evaluation(db, student.id, concept_id, current_confidence, correct)
 
     updates: dict = {
         "evaluation": {

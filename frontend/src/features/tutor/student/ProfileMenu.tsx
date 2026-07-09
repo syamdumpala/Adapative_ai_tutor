@@ -52,7 +52,6 @@ function AccountDropdown({
   initials,
   close,
   onProfile,
-  onPerformance,
   onAnalytics,
   onLogout,
 }: ProfileMenuProps & { close: () => void }) {
@@ -72,15 +71,11 @@ function AccountDropdown({
           <Avatar initials={initials} gradient="violet" size={38} />
           <div className="min-w-0">
             <div className="text-[13.5px] font-bold">{fullName(name)}</div>
-            <div className="text-[11px] text-ink2">Grade 5 · Student</div>
           </div>
         </div>
         <div className="p-[6px]">
           <MenuItem icon="◔" onClick={run(onProfile)}>
             Profile
-          </MenuItem>
-          <MenuItem icon="▦" onClick={run(onPerformance)}>
-            Performance
           </MenuItem>
           <MenuItem icon="▩" onClick={run(onAnalytics)}>
             My progress
@@ -115,7 +110,6 @@ export function ProfileMenu({
       >
         <span className="text-right leading-[1.15]">
           <span className="block text-[13px] font-bold">{fullName(name)}</span>
-          <span className="block text-[10.5px] text-ink2">Grade 5</span>
         </span>
         <Avatar initials={initials} gradient="violet" size={34} />
         <span className="text-[10px] text-ink3">▾</span>

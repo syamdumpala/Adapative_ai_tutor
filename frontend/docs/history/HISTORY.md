@@ -4,6 +4,24 @@ Append-only changelog. Newest first.
 
 ---
 
+## 2026-07-10 — "?" help on every analytics chart; drop the composer hint badge
+
+- **Info affordance everywhere** — every chart on the progress page now has the
+  same hover-to-explain "?" (`InfoDot`), pinned to the card's top-right via
+  `ChartCard` (overflow-safe on narrow cards). Blurbs live in one place
+  (`chartInfo.ts`) and cover the trend, misconception donut, subject bars, topic
+  ranking, mastery-vs-confidence, effort scatter, understanding mix, and the
+  review-due card.
+- **Trend chart wording** — retitled to "Mastery, confidence & misconfidence over
+  time"; the third series / legend label is now just **"Misconfidence"** (not
+  "Misconfidence index").
+- **Composer hint badge removed** — the "Hint N of 3" status chip above the chat
+  input (`Composer`'s `HintBadge`) is gone per request; the tutor's actual hint
+  message bubbles are unaffected. `hintRung` is no longer threaded into `Composer`
+  (the chat-state field remains). Purely a frontend display change — no backend
+  text drove that chip.
+- **Verify** — `npm run check` + `next build` green.
+
 ## 2026-07-10 — Trend chart: Misconfidence Index line + info tooltip
 
 Extended the "Mastery & confidence over time" chart on the student progress page.

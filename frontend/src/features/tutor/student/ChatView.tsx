@@ -40,7 +40,7 @@ export function ChatView({ chat }: ChatViewProps) {
           {state.locked ? (
             <CompletionBanner onNewChat={() => chat.openTopic(state.topicId)} />
           ) : (
-            <Composer hintRung={state.hintRung} onSend={chat.sendMessage} />
+            <Composer onSend={chat.sendMessage} />
           )}
         </div>
       </div>
