@@ -16,3 +16,5 @@ ignore = ["B008"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = ["E501"]
+# Agent node files hold long natural-language LLM prompts; don't enforce line length.
+"**/graph/nodes/*.py" = ["E501"]

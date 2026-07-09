@@ -22,6 +22,9 @@ class TutorState(TypedDict, total=False):
     diag_asked_this_turn: bool  # transient: a probing question was asked this turn
     diagnostic: dict | None  # final {observations, qa} — set once probing is complete
     misconception: str | None  # difficulty category, or "none"
+    misconception_detail: (
+        dict | None
+    )  # full classification {misconception, category, confidence, evidence}
     tutor_plan: dict | None  # {difficulty, hint_level, plan}
     docs: list | None  # RAG documents [{title, content}]
     hint: str | None
@@ -38,6 +41,7 @@ class TutorState(TypedDict, total=False):
     action: str  # diagnostic | hint | evaluation | escalation | completed | await
     output: str
     awaiting: str | None  # None | "diagnostic" | "hint" — what the next message answers
+    subject: str
 
 
 def new_state(student_id: int, session_id: str, concept: str) -> TutorState:
@@ -56,6 +60,7 @@ def new_state(student_id: int, session_id: str, concept: str) -> TutorState:
         "diag_asked_this_turn": False,
         "diagnostic": None,
         "misconception": None,
+        "misconception_detail": None,
         "tutor_plan": None,
         "docs": None,
         "hint": None,
@@ -70,6 +75,7 @@ def new_state(student_id: int, session_id: str, concept: str) -> TutorState:
         "action": "await",
         "output": "",
         "awaiting": None,
+        "subject": "Science",
     }
 
 

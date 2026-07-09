@@ -15,6 +15,3 @@ async def profile_node(state, config):
             "evidence_count": profile.evidence_count or 0,
         }
     }
-
-
-# we need to add the profile to state so that next agent get the profile
