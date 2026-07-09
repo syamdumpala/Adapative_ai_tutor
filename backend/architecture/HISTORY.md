@@ -111,6 +111,35 @@ fallbacks → `"1"`.
 **Tests:** `make test` green; ruff clean; frontend `npm run check` green.
 Migration verified on Postgres.
 
+## 2026-07-09 — Subject-aware graph state + learning analytics (subject vs mastery vs confidence)
+
+**Author:** AI (Claude)
+**Summary:** Two additions. (1) **Subject in state:** `ask_question` now fetches the
+subject from the `subjects` table by the request's `subject_id`
+(`fetch_subject_name`) and seeds `state["subject"]` in both the new-session and
+existing-session branches, so every graph agent (diagnostic, misconception,
+planner, hint, guard, evaluator) is scoped to the real subject instead of the
+hardcoded `"Maths"` default. Unknown ids fall back gracefully. Note: `subject_id`
+must be a catalog slug (`fractions`, `decimals`, `percentages`, `integers`,
+`geometry`, `ratios`), not a numeric index. (2) **Learning analytics:** new
+`session_analytics` table (one upserted row per session, keyed by `session_id`)
+storing `student_id`, `session_id`, `subject_id`, `mastery`, `confidence`,
+`misconception_category`. Written automatically when a session completes (enters
+history mode) via `record_session_analytics`. New read `GET /me/analytics`
+(`reads.get_analytics`) returns per-subject means (`by_subject`) plus the raw
+per-session `points` — plot-ready for subject vs mastery vs confidence.
+**Files:**
+
+- Modified: `app/features/tutor/service.py` (`fetch_subject_name`,
+  `record_session_analytics`, subject-in-state wiring, analytics write on
+  completion), `app/features/tutor/models.py` (`SessionAnalytics`),
+  `app/features/tutor/schemas.py` (`AnalyticsPoint`, `SubjectAnalytics`,
+  `AnalyticsResponse`), `app/features/tutor/reads.py` (`get_analytics`),
+  `app/features/tutor/routes.py` (`GET /me/analytics`),
+  `app/features/tutor/tests/test_tutor.py` (subject-in-state + analytics tests).
+  **Tests:** `make test` green (59 passed); analytics + subject-flow verified
+  end-to-end against local PostgreSQL.
+
 ## 2026-07-09 — Fix /tutor/ask 500 (kind width) + restore frontend read routes after merge
 
 **Author:** AI (Claude)
