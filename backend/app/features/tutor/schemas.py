@@ -119,3 +119,31 @@ class PerformanceOut(BaseModel):
     misconceptions_resolving: int
     insight: PerfInsight
     stats: list[PerfStat]
+
+
+class ConversationMessage(BaseModel):
+    role: str  # student | tutor
+    # question | diagnostic_question | diagnostic_answer | hint | hint_answer |
+    # completed | escalation
+    kind: str
+    content: str
+    created_at: str | None = None
+
+
+class ConversationResponse(BaseModel):
+    session_id: str
+    initial_question: str
+    subject: str | None = None
+    status: str
+    messages: list[ConversationMessage]
+
+
+class SessionIndexItem(BaseModel):
+    """Compact session row for the conversation index (distinct from the rich
+    `SessionSummary` above used by the chat rail)."""
+
+    session_id: str
+    initial_question: str
+    subject: str | None = None
+    status: str
+    created_at: str | None = None

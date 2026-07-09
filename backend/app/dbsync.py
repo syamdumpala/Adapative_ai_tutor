@@ -40,7 +40,7 @@ _COLUMNS: list[tuple[str, str, str]] = [
     ("tutor_sessions", "title", "VARCHAR(255)"),
     ("tutor_sessions", "hint_rung", "INTEGER NOT NULL DEFAULT 0"),
     ("tutor_sessions", "leak_checks", "INTEGER NOT NULL DEFAULT 0"),
-    ("conversation_history", "kind", "VARCHAR(16) NOT NULL DEFAULT 'text'"),
+    ("conversation_history", "kind", "VARCHAR(32)"),
     ("conversation_history", "payload", "JSON"),
     ("teacher_escalations", "trigger", "VARCHAR(32)"),
     ("teacher_escalations", "excerpt", "VARCHAR(240)"),
@@ -54,6 +54,16 @@ _INDEXES: list[tuple[str, str, str]] = [
     ("ix_students_role", "students", "role"),
     ("ix_tutor_sessions_subject_id", "tutor_sessions", "subject_id"),
     ("ix_teacher_escalations_status", "teacher_escalations", "status"),
+]
+
+# (table, column, new-type) — widen columns whose model type grew. `ADD COLUMN IF
+# NOT EXISTS` cannot fix a column that already exists at the old width, so an
+# explicit TYPE change is required. Widening a VARCHAR in Postgres is a fast,
+# metadata-only, idempotent operation.
+_WIDEN: list[tuple[str, str, str]] = [
+    # conversation_history.kind started at VARCHAR(16) but now stores values like
+    # "diagnostic_question" (19 chars).
+    ("conversation_history", "kind", "VARCHAR(32)"),
 ]
 
 
@@ -72,6 +82,8 @@ async def sync_schema(conn: AsyncConnection) -> None:
         del result
     for name, table, column in _INDEXES:
         await conn.execute(text(f'CREATE INDEX IF NOT EXISTS {name} ON {table} ("{column}")'))
+    for table, column, coltype in _WIDEN:
+        await conn.execute(text(f'ALTER TABLE {table} ALTER COLUMN "{column}" TYPE {coltype}'))
     logger.info("Schema sync complete (%d columns ensured on PostgreSQL).", added)
 
 

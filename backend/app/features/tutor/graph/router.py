@@ -6,10 +6,12 @@ elif misconception missing-> misconception
 elif tutor_plan missing   -> planner
 elif hint missing         -> hint
 elif evaluation missing   -> evaluator (only if the student has answered; else pause)
-elif wrong and failures<3 -> planner   (evaluator normally clears fields itself)
-elif failures>=3 / distress -> escalation
+elif distress             -> escalation
+elif wrong (no distress)  -> planner   (evaluator normally clears fields itself)
 elif correct              -> memory
 else                      -> await (END the turn)
+
+Hints are unlimited — there is no failure cap; only distress escalates to a teacher.
 """
 
 from app.features.tutor.graph.state import TutorState
@@ -38,14 +40,10 @@ def route(state: TutorState) -> str:
             return "evaluator"
         return "await"  # hint delivered; wait for the student's answer
 
-    if (
-        evaluation.get("correct") is False
-        and state.get("failures", 0) < 3
-        and not state.get("distress")
-    ):
+    if state.get("distress"):
+        return "escalation"  # only distress ends the loop — hints are unlimited
+    if evaluation.get("correct") is False:
         return "planner"  # safety net; evaluator usually clears fields to loop
-    if state.get("failures", 0) >= 3 or state.get("distress"):
-        return "escalation"
     if evaluation.get("correct") is True:
         return "memory"
     return "await"

@@ -10,6 +10,7 @@ from app.features.tutor import reads
 from app.features.tutor.schemas import (
     AskRequest,
     AskResponse,
+    ConversationResponse,
     MessageOut,
     PerformanceOut,
     ProfileOut,
@@ -20,6 +21,7 @@ from app.features.tutor.service import (
     SessionClosedError,
     SessionNotFoundError,
     ask_question,
+    get_session_conversation,
 )
 
 router = APIRouter(prefix="/tutor", tags=["tutor"])
@@ -109,6 +111,19 @@ async def list_session_messages(
     try:
         return await reads.list_messages(db, session_id, current, params)
     except reads.SessionNotFoundError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found") from None
+
+
+@router.get("/sessions/{session_id}/conversation", response_model=ConversationResponse)
+async def get_conversation(
+    session_id: str,
+    current: Student = Depends(get_current_student),
+    db: AsyncSession = Depends(get_db),
+):
+    """Typed transcript of one session (question / diagnostic / hint / … turns)."""
+    try:
+        return await get_session_conversation(db, current, session_id)
+    except SessionNotFoundError:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found") from None
 
 

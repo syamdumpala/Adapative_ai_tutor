@@ -18,5 +18,5 @@ async def revision_node(state, config):
         await db.flush()
 
     output = state.get("output", "")
-    output = f"{output}\nNext review scheduled in {days} day(s)."
+    output = f"{output} . Next review scheduled in {days} day(s)."
     return {"next_review": next_review.isoformat(), "action": "completed", "output": output}

@@ -73,7 +73,7 @@ def new_state(student_id: int, session_id: str, concept: str) -> TutorState:
         "action": "await",
         "output": "",
         "awaiting": None,
-        "subject": "Science",
+        "subject": "Maths",
     }
 
 

@@ -7,11 +7,7 @@ async def escalation_node(state, config):
     db = config["configurable"]["db"]
     student = config["configurable"]["student"]
 
-    reason = (
-        "Repeated failures (>= 3 attempts)"
-        if state.get("failures", 0) >= 3
-        else "Student distress detected"
-    )
+    reason = "Student distress detected"
     db.add(
         TeacherEscalation(
             student_id=student.id,

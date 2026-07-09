@@ -19,6 +19,8 @@ async def misconception_node(state, config):
         MisconceptionResult,
         prompts.SYSTEM,
         prompts.user(subject, state.get("concept"), profile, diagnostic),
+        history=config["configurable"].get("history"),
+        subject=subject,
     )
     category = str(data.get("category") or "Unknown").strip() or "Unknown"
     # Store the category string (used downstream by planner + evidence error_type),

@@ -73,7 +73,7 @@ flowchart TD
     SUP -->|hint missing| HIN[Hint]
     SUP -->|answered| EVA[Evaluator]
     SUP -->|correct| MEM[Memory]
-    SUP -->|failures>=3 / distress| ESC[Escalation]
+    SUP -->|distress| ESC[Escalation]
     SUP -->|hint delivered| ENDA((END: await answer))
 
     PRO --> SUP
@@ -114,11 +114,22 @@ sequenceDiagram
     alt correct
         G-->>S: Memory -> Revision (completed)
         S-->>C: {completed, mastery, next_review}
-    else wrong (failures<3)
-        G-->>S: new Hint (await)
+    else wrong (no distress)
+        G-->>S: new Hint (await)  %% unlimited hints — no attempt cap
         S-->>C: {hint}
-    else failures>=3 or distress
+    else distress
         G-->>S: Escalation
         S-->>C: {escalation}
     end
 ```
+
+### Context & conversation
+
+Every turn the service loads the session's `conversation_history` (all prior
+student/tutor messages) plus the current student message, and passes it into the
+graph as `config.configurable.history`. Each LLM agent prepends this transcript
+(student → HumanMessage, tutor → AIMessage) before its task, so no agent loses
+context — the Evaluator, for example, judges the latest answer against the
+**initial** question using every hint in between. A subject guardrail is appended
+to each agent call at runtime (prompts unchanged). Fetch the typed transcript via
+`GET /tutor/sessions/{id}/conversation`; list sessions via `GET /tutor/sessions`.
