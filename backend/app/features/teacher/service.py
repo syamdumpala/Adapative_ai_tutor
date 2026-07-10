@@ -28,6 +28,7 @@ from app.features.teacher.schemas import (
     TopicStudentOut,
     TopicWithAggregateOut,
 )
+from app.features.tutor import reads
 from app.features.tutor.models import (
     EvidenceEvent,
     StudentConceptState,
@@ -149,6 +150,20 @@ async def get_student_record(db: AsyncSession, public_id: str) -> StudentRecordO
         topic_count=topic_count,
         total_questions=total_questions,
     )
+
+
+async def get_student_analytics(db: AsyncSession, public_id: str):
+    """One student's overall learning analytics for the teacher's profile view — the
+    same payload the student sees at `/me/analytics` (reused verbatim, no re-labeling)."""
+    student = await _resolve_student(db, public_id)
+    return await reads.get_analytics(db, student)
+
+
+async def get_student_performance(db: AsyncSession, public_id: str):
+    """One student's performance KPIs for the teacher's profile view — the same payload
+    the student sees at `/me/performance`."""
+    student = await _resolve_student(db, public_id)
+    return await reads.get_performance(db, student)
 
 
 async def list_student_topics(

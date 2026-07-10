@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Adaptive AI Tutor — Frontend
 
-## Getting Started
+The student + teacher experience for the Adaptive AI Tutor, built with
+**Next.js 16** (App Router, React 19, TypeScript 5, Tailwind CSS 4).
 
-First, run the development server:
+The browser only ever calls same-origin `/api/*` routes; a **BFF proxy**
+(`src/app/api/*`) attaches the session JWT from an httpOnly cookie and forwards
+to the FastAPI backend, so the token is never exposed to client JS.
+
+> **Before changing code, read [`RULES.md`](./RULES.md)** — the one-page summary
+> of the codebase, its guardrails, and the required workflow (detailed docs live
+> under [`docs/`](./docs)). Note this is Next.js **16**, which has breaking
+> changes vs. earlier versions.
+
+## Prerequisites
+
+The backend must be running and **seeded** so there are accounts to log in with
+and data to display — see [`../backend/README.md`](../backend/README.md)
+(`make seed`).
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local     # API_BASE_URL defaults to http://localhost:8000
+npm run dev                    # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`.env.local` points the app at the backend:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `API_BASE_URL` — backend base URL used by the server-side BFF routes.
+- `NEXT_PUBLIC_API_BASE_URL` — backend base URL as seen by the browser.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Both default to `http://localhost:8000` when unset.
 
-## Learn More
+## Demo credentials
 
-To learn more about Next.js, take a look at the following resources:
+All seeded accounts use the password **`password123`** (full list in the
+[root README](../README.md)). The two you'll want most:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Role    | Email                  | What to explore                                        |
+| ------- | ---------------------- | ------------------------------------------------------ |
+| Student | `maya.chen@school.edu` | Chat with Mira, then account menu → **My progress**    |
+| Teacher | `teacher@school.edu`   | Roster, per-student overall-performance graphs, topics |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Commands
 
-## Deploy on Vercel
+```bash
+npm run dev            # start the dev server
+npm run build          # production build (fails on type errors)
+npm run check          # typecheck + lint + format:check (run before pushing)
+npm run lint           # ESLint (quality + security rules)
+npm run format         # Prettier write
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `src/app` — App Router entry + the BFF route handlers (`api/auth`, `api/backend`).
+- `src/features/tutor` — the Mira app shell, student area (home, chat, **analytics**),
+  and teacher area (roster, topics, student drill-down).
+- `src/components` — reusable UI primitives (see `src/components/README.md`).
+- `src/lib`, `src/hooks` — shared helpers (API client, tones, responsive, toast).

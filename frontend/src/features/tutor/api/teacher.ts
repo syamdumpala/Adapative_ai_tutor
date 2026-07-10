@@ -1,6 +1,20 @@
 import { apiGet, apiPost, type Page, qs } from "@/lib/api";
 import type { Health, Understanding } from "@/lib/tones";
+import type { AnalyticsDTO, PerformanceDTO } from "./student";
 import type { Engagement, TeacherStudent } from "../data/teacher";
+
+/** A specific student's overall analytics / KPIs (teacher view; same shape as `/me/*`). */
+export function fetchStudentAnalytics(id: string): Promise<AnalyticsDTO> {
+  return apiGet<AnalyticsDTO>(
+    `/teacher/students/${encodeURIComponent(id)}/analytics`,
+  );
+}
+
+export function fetchStudentPerformance(id: string): Promise<PerformanceDTO> {
+  return apiGet<PerformanceDTO>(
+    `/teacher/students/${encodeURIComponent(id)}/performance`,
+  );
+}
 
 /** Teacher-dashboard API client + mappers onto the existing view types. */
 

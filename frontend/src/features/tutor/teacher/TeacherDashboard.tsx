@@ -21,6 +21,7 @@ function screenBody(
   nav: TeacherNav,
   students: TeacherStudent[],
   bp: Breakpoint,
+  name: string,
 ) {
   if (nav.screen === "catalog") {
     return <TopicCatalog />;
@@ -46,7 +47,7 @@ function screenBody(
       />
     );
   }
-  return <TeacherHome students={students} bp={bp} nav={nav} />;
+  return <TeacherHome students={students} bp={bp} nav={nav} name={name} />;
 }
 
 /** Teacher dashboard shell: toolbar over home / topic / student screens. */
@@ -75,7 +76,7 @@ export function TeacherDashboard({
           name={name}
           initials={initials}
         />
-        {screenBody(nav, students, bp)}
+        {screenBody(nav, students, bp, name)}
       </div>
     </main>
   );

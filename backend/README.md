@@ -45,13 +45,40 @@ Full layout and conventions: [`architecture/STRUCTURE.md`](./architecture/STRUCT
    # edit .env — set DATABASE_URL, JWT_SECRET, and ANTHROPIC_API_KEY
    ```
 
-4. **Run:**
+4. **Seed the demo data (recommended):**
+
+   ```bash
+   make migrate            # create tables + add any new columns (idempotent)
+   make seed               # demo teacher + students, topics, and analytics
+   ```
+
+5. **Run:**
 
    ```bash
    make run                # uvicorn app.main:app --reload
    ```
 
    Interactive docs at http://localhost:8000/docs
+
+## Demo credentials
+
+`make seed` creates the accounts below (idempotent — safe to re-run). **Every
+account uses the password `password123`.** Log in via `POST /auth/login` (or the
+frontend login screen).
+
+| Role    | Email                  | Name        | Notes                                        |
+| ------- | ---------------------- | ----------- | -------------------------------------------- |
+| Teacher | `teacher@school.edu`   | Ms. Alvarez | Class dashboard: roster, topics, escalations |
+| Student | `maya.chen@school.edu` | Maya Chen   | **Richest demo data** — best for the charts  |
+| Student | `priya@school.edu`     | Priya Nair  | Steady                                       |
+| Student | `leo@school.edu`       | Leo Meyer   | Steady                                       |
+| Student | `sam@school.edu`       | Sam Ortiz   | Needs watching                               |
+| Student | `rohan@school.edu`     | Rohan Das   | At risk (open escalation)                    |
+
+The seed also backfills each student's **learning-analytics series** (the
+mastery / confidence / misconfidence trend, misconceptions, and per-subject
+means) so the `/me/analytics`, `/me/topics`, and teacher dashboards are populated
+out of the box.
 
 ## Testing
 

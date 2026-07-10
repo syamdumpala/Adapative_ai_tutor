@@ -32,7 +32,7 @@ Claude Design handoff on top of a reusable component library.
 | Shared hooks / libs | ✅     | `useResponsive`, `useToast`, `tones`, `cn`, `backdrop`      |
 | Tutor · student     | ✅     | Home (chats + searchable topics), guided chat, hint ladder, quiz |
 | Tutor · analytics   | ✅     | "My progress" page — overall + per-topic performance graphs (Recharts) |
-| Tutor · teacher     | ✅     | Topics + students panels, drill-downs, topic catalog + create |
+| Tutor · teacher     | ✅     | Topics + students panels, drill-downs (incl. student overall-performance graphs), catalog + create |
 | Auth (Login)        | ✅     | Real sign-in / sign-up workflow + validation (API seam only) |
 | Routes              | ✅     | `/` (`?role=`), `/login` (`?mode`/`?role`)                  |
 

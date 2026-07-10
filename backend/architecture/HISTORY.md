@@ -12,6 +12,41 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-07-10 — READMEs + documented demo credentials
+
+**Author:** AI (Claude)
+**Summary:** Documentation only. Added a **root `README.md`** (monorepo overview,
+two-terminal quick start, full demo-credentials table) and extended
+`backend/README.md` with a **Seed / Demo credentials** section: the accounts
+`make seed` creates (teacher `teacher@school.edu`; students `maya.chen@school.edu`,
+`priya@`, `leo@`, `sam@`, `rohan@school.edu`), all password `password123`, so a
+tester can log in and drive the student + teacher workflows immediately. The root
+README also carries a **linked index of every reference doc** (backend/frontend
+architecture, security, modules, PRD, local-LLM setup) with a one-line summary of
+each. No code changed.
+**Files:** `README.md` (new, repo root), `backend/README.md`. **Tests:** n/a
+(docs); credentials cross-checked against `app/seed.py`.
+
+---
+
+## 2026-07-10 — Teacher can read a student's overall analytics/performance
+
+**Author:** AI (Claude)
+**Summary:** So the teacher's student-profile view can show the **same** overall
+performance graphs the student sees, added two teacher-guarded reads:
+`GET /teacher/students/{public_id}/analytics` (→ `AnalyticsResponse`) and
+`GET /teacher/students/{public_id}/performance` (→ `PerformanceOut`). Both are thin
+wrappers — `service.get_student_analytics/performance` resolve the student via the
+existing `_resolve_student` and reuse `reads.get_analytics`/`reads.get_performance`
+**verbatim** (no duplicated logic, no re-labeling). Unknown student → 404; the routes
+inherit the router's `require_teacher` guard.
+**Files:** `app/features/teacher/{service,routes}.py`,
+`app/features/teacher/tests/test_teacher.py` (2 tests).
+**Tests:** `make test` green (65); ruff clean. Covered: teacher reads maya's
+analytics (shape) + performance (KPIs), 404 for unknown, and a student is 403.
+
+---
+
 ## 2026-07-10 — Live per-topic mastery: `student_concept_state` updates from chat
 
 **Author:** AI (Claude)
