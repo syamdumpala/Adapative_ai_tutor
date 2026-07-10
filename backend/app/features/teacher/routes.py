@@ -19,6 +19,7 @@ from app.features.teacher.schemas import (
     TopicStudentOut,
     TopicWithAggregateOut,
 )
+from app.features.tutor.schemas import AnalyticsResponse, PerformanceOut
 
 router = APIRouter(prefix="/teacher", tags=["teacher"], dependencies=[Depends(require_teacher)])
 
@@ -60,6 +61,25 @@ async def student_topics(
     """The topics a student has explored, with per-topic mastery (searchable by name)."""
     try:
         return await service.list_student_topics(db, public_id, params)
+    except service.StudentNotFoundError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Student not found") from None
+
+
+@router.get("/students/{public_id}/analytics", response_model=AnalyticsResponse)
+async def student_analytics(public_id: str, db: AsyncSession = Depends(get_db)):
+    """One student's overall performance analytics (same charts as the student's own
+    "My progress" overview — trend, misconceptions, subjects)."""
+    try:
+        return await service.get_student_analytics(db, public_id)
+    except service.StudentNotFoundError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Student not found") from None
+
+
+@router.get("/students/{public_id}/performance", response_model=PerformanceOut)
+async def student_performance(public_id: str, db: AsyncSession = Depends(get_db)):
+    """One student's performance KPIs (accuracy, mastery, streak, misconceptions)."""
+    try:
+        return await service.get_student_performance(db, public_id)
     except service.StudentNotFoundError:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Student not found") from None
 

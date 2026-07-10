@@ -4,6 +4,40 @@ Append-only changelog. Newest first.
 
 ---
 
+## 2026-07-10 — Project + frontend READMEs with demo credentials
+
+Replaced the default create-next-app `README.md` with a project-specific one
+(what it is, BFF note, prerequisites, `.env.local` setup, commands, structure)
+and added the seeded **demo credentials** (all `password123`) so a tester can log
+in immediately. Also added a **root `README.md`** (monorepo overview, two-terminal
+quick start, full credentials table, and a **linked index of every reference doc**
+with one-line summaries) — see repo root and `../backend/README.md`.
+
+## 2026-07-10 — Teacher home shows the signed-in teacher's name
+
+The teacher landing heading was hardcoded to "Ms. Alvarez"; it now renders the
+logged-in teacher's `name` (the same value the toolbar already uses), threaded
+`TeacherDashboard → screenBody → TeacherHome`. (Incidental: dropped a now-unused
+`onOpenTopic` destructure in `StudentDetail`'s `ExploredTopics` that was failing
+strict typecheck.) `npm run check` + `next build` green.
+
+## 2026-07-10 — Student overall-performance graphs in the teacher profile
+
+The teacher's student-profile view now shows the **same overall performance
+graphs** the student sees on their own "My progress" overview — no per-topic
+graphs, no risk labels/categorization, just the charts.
+
+- **Reusable presentational block** — extracted `OverviewCharts` (KPI row +
+  mastery/confidence/misconfidence trend + misconception donut + subject bars)
+  from `OverviewPanel`; it now takes `{points, subjects, perf, loading}` as props.
+  `OverviewPanel` (the student's own `/me/*` view) is a thin wrapper over it.
+- **Teacher side** — `TeacherStudentOverview` feeds the same block from new
+  teacher endpoints (`/teacher/students/{id}/analytics` + `/performance`) via
+  `useTeacherStudentAnalytics`/`useTeacherStudentPerformance` and
+  `api/teacher.ts` fetchers. Rendered in `StudentDetail` under an "Overall
+  performance" heading, keyed on the student id so it refetches per student.
+- **Verify** — `npm run check` + `next build` green.
+
 ## 2026-07-10 — "?" help on every analytics chart; drop the composer hint badge
 
 - **Info affordance everywhere** — every chart on the progress page now has the

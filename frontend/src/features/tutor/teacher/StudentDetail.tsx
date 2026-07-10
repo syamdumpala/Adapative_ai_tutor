@@ -17,6 +17,7 @@ import {
   type TeacherStudent,
   topicById,
 } from "../data/teacher";
+import { TeacherStudentOverview } from "./TeacherStudentOverview";
 
 interface StudentDetailProps {
   student: TeacherStudent;
@@ -57,17 +58,14 @@ function TopicProgressRow({
   name,
   engagement,
   delaySec,
-  onClick,
 }: {
   name: string;
   engagement: Engagement;
   delaySec: number;
-  onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
+      onClick={() => {}}
       className="flex items-center gap-[14px] rounded-[14px] border border-line bg-card px-4 py-[14px] text-left shadow-soft transition hover:border-ink3"
     >
       <div className="min-w-0 flex-1">
@@ -90,20 +88,11 @@ function TopicProgressRow({
           </span>
         </div>
       </div>
-      <div className="flex-none whitespace-nowrap text-right text-[11.5px] text-ink2">
-        {engagement.asked} asked
-      </div>
-      <span className="flex-none text-[14px] text-ink3">›</span>
-    </button>
+    </div>
   );
 }
 
-function ExploredTopics({
-  student,
-  query,
-  onQuery,
-  onOpenTopic,
-}: StudentDetailProps) {
+function ExploredTopics({ student, query, onQuery }: StudentDetailProps) {
   const firstName = student.name.split(" ")[0] ?? student.name;
   const q = query.trim().toLowerCase();
   const items = Object.keys(student.eng).map((id, index) => ({
@@ -137,7 +126,6 @@ function ExploredTopics({
               name={item.topic.name}
               engagement={item.engagement}
               delaySec={item.index * 0.06}
-              onClick={() => onOpenTopic(item.id)}
             />
           ))}
         </div>
@@ -164,6 +152,12 @@ export function StudentDetail(props: StudentDetailProps) {
         <StatCard value={student.improvement} label="Improvement" accent />
         <StatCard value={topicIds.length} label="Topics explored" />
         <StatCard value={totalQuestions} label="Questions asked" />
+      </div>
+      <div>
+        <div className="mb-3 font-display text-[15px] font-bold">
+          Overall performance
+        </div>
+        <TeacherStudentOverview key={student.id} studentId={student.id} />
       </div>
       <ExploredTopics {...props} />
     </div>

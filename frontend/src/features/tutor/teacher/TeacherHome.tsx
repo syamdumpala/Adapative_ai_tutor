@@ -9,15 +9,16 @@ interface TeacherHomeProps {
   students: TeacherStudent[];
   bp: Breakpoint;
   nav: TeacherNav;
+  name: string;
 }
 
 /** Teacher landing: class heading over the topics and students panels. */
-export function TeacherHome({ students, bp, nav }: TeacherHomeProps) {
+export function TeacherHome({ students, bp, nav, name }: TeacherHomeProps) {
   return (
     <>
       <div className="animate-fade-up">
         <h1 className="text-[clamp(26px,4vw,36px)] font-extrabold">
-          Ms. Alvarez · Fractions
+          Hello {name}
         </h1>
         <div className="mt-[5px] text-[13.5px] text-ink2">
           Open a topic to see how the class is doing, or a student to see their

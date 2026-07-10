@@ -105,3 +105,25 @@ async def test_overview_and_simulate_day(seeded_client):
 
     sim = (await seeded_client.post("/teacher/simulate-day", headers=h)).json()
     assert sim["advanced"] > 0
+
+
+async def test_teacher_reads_student_overview(seeded_client):
+    """The teacher can pull a student's overall analytics + performance (same payload
+    the student sees) for the profile view."""
+    h = await _teacher(seeded_client)
+
+    analytics = (await seeded_client.get("/teacher/students/maya/analytics", headers=h)).json()
+    assert set(analytics) == {"by_subject", "points", "misconception_matrix"}
+
+    perf = (await seeded_client.get("/teacher/students/maya/performance", headers=h)).json()
+    assert perf["recent_accuracy"] == "84%"
+    assert {s["key"] for s in perf["stats"]} == {"accuracy", "mastered", "streak", "misconception"}
+
+    missing = await seeded_client.get("/teacher/students/nobody/analytics", headers=h)
+    assert missing.status_code == 404
+
+
+async def test_student_cannot_read_teacher_student_overview(seeded_client):
+    student = await _login(seeded_client, "maya.chen@school.edu")
+    resp = await seeded_client.get("/teacher/students/maya/analytics", headers=student)
+    assert resp.status_code == 403

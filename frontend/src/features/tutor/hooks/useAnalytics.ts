@@ -5,8 +5,10 @@ import {
   type AnalyticsDTO,
   fetchAnalytics,
   fetchTopicAnalytics,
+  type PerformanceDTO,
   type TopicAnalyticsDTO,
 } from "../api/student";
+import { fetchStudentAnalytics, fetchStudentPerformance } from "../api/teacher";
 
 /** Async resource state shared by the analytics hooks. */
 export interface Resource<T> {
@@ -49,4 +51,19 @@ export function useAnalytics(): Resource<AnalyticsDTO> {
 /** Per-topic (concept-grain) analytics for the signed-in student. */
 export function useTopicAnalytics(): Resource<TopicAnalyticsDTO[]> {
   return useResource(async () => (await fetchTopicAnalytics()).topics);
+}
+
+// Teacher views of one student — mount-once fetchers. Callers remount per student
+// (via a `key`), so the closed-over id is always current.
+
+/** A specific student's overall analytics, for the teacher's profile view. */
+export function useTeacherStudentAnalytics(id: string): Resource<AnalyticsDTO> {
+  return useResource(() => fetchStudentAnalytics(id));
+}
+
+/** A specific student's performance KPIs, for the teacher's profile view. */
+export function useTeacherStudentPerformance(
+  id: string,
+): Resource<PerformanceDTO> {
+  return useResource(() => fetchStudentPerformance(id));
 }
