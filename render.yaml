@@ -30,7 +30,7 @@ services:
       - key: LLM_PROVIDER
         value: google
       - key: LLM_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.6-flash
       - key: GOOGLE_API_KEY
         sync: false
       - key: DEBUG_AGENT_IO
