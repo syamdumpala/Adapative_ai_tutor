@@ -12,6 +12,30 @@ Newest entries first. Append an entry for **every** change. Format:
 
 ---
 
+## 2026-09-03 — Production deploy prep: hosted-Postgres URL normalization + Render blueprint
+
+**Author:** AI (Claude)
+**Summary:** Preparing the backend for deployment to Render with a hosted
+Postgres add-on. Render (and most managed Postgres hosts) hand out connection
+strings as `postgres://` or `postgresql://`, but the app's async SQLAlchemy
+engine requires the `+asyncpg` driver in the scheme. Added a `field_validator`
+on `Settings.database_url` that rewrites either prefix to
+`postgresql+asyncpg://` transparently, so `DATABASE_URL` can be pasted from any
+host as-is — no manual editing, no code change per environment. Also added a
+root-level `render.yaml` Blueprint that provisions the web service (Python,
+`uvicorn app.main:app`, `rootDir: backend`) and a free Postgres database
+together, wiring `DATABASE_URL` from the database automatically and leaving
+`ANTHROPIC_API_KEY` as a Render-prompted secret (`sync: false`, never
+committed). `LLM_PROVIDER=anthropic` / `LLM_AUTH_MODE=api_key` are set in the
+blueprint so production uses the metered Anthropic API key rather than the
+dev-only Claude subscription OAuth path.
+**Files:** `backend/app/core/config.py`, `render.yaml` (new, repo root).
+**Tests:** `make test` (full suite, 0 failures) — the validator doesn't change
+behavior for the existing `postgresql+asyncpg://` dev URL, only normalizes the
+two hosted-provider prefixes.
+
+---
+
 ## 2026-07-10 — READMEs + documented demo credentials
 
 **Author:** AI (Claude)

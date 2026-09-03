@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,6 +9,17 @@ class Settings(BaseSettings):
 
     # PostgreSQL — async driver (asyncpg). Override via DATABASE_URL in .env.
     database_url: str = "postgresql+asyncpg://localhost:5432/adaptive_tutor"
+
+    @field_validator("database_url")
+    @classmethod
+    def _use_asyncpg_driver(cls, v: str) -> str:
+        """Normalise hosted-Postgres URLs (Render/Railway give `postgres://` or
+        `postgresql://`) to the `+asyncpg` driver SQLAlchemy's async engine needs."""
+        if v.startswith("postgres://"):
+            return "postgresql+asyncpg://" + v[len("postgres://") :]
+        if v.startswith("postgresql://"):
+            return "postgresql+asyncpg://" + v[len("postgresql://") :]
+        return v
 
     # JWT auth
     jwt_secret: str = "change-me-in-production"
